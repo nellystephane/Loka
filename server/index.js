@@ -161,6 +161,12 @@ app.get('/api', (req, res) => {
   res.json({ message: 'API Loka opérationnelle 🚀' });
 });
 
+app.get('/api/version', (req, res) => {
+  res.json({
+    commit: process.env.RENDER_GIT_COMMIT || process.env.GITHUB_SHA || null
+  });
+});
+
 // ─── Healthcheck : utile pour le monitoring (Render, uptime checks...) ───
 app.get('/api/health', (req, res) => {
   const dbConnecte = mongoose.connection.readyState === 1;

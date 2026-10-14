@@ -5,6 +5,12 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..','..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
+test('deployment version endpoint reports the Render commit',()=>{
+ const server=read('server/index.js');
+ assert.match(server,/app\.get\('\/api\/version'/);
+ assert.match(server,/commit: process\.env\.RENDER_GIT_COMMIT \|\| process\.env\.GITHUB_SHA \|\| null/);
+});
+
 test('journey: public discovery is API-backed, not hard-coded demo content',()=>{
  const home=read('client/src/pages/Home.tsx');
  assert.match(home,/\/api\/discovery\/home/);

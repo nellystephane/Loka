@@ -20,6 +20,7 @@ loka-main/
 
 - Le workflow `.github/workflows/deploy.yml` déploie uniquement `client/` vers GitHub Pages.
 - Le backend `server/` reste déployé par Render depuis le dépôt GitHub.
+- Vérifier le commit actif du backend via `https://proxiconnect.onrender.com/api/version` ; la réponse contient le SHA fourni par Render.
 - Aucun nouveau workflow backend n'est ajouté.
 - Le workflow GitHub Pages est conservé tel qu'il existait.
 
