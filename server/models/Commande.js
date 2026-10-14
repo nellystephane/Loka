@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 // ─── Commande (Espace Vente) ───
 const commandeSchema = new mongoose.Schema({
 
+  reference: { type: String, unique: true, sparse: true, index: true },
+
   client: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -27,10 +29,12 @@ const commandeSchema = new mongoose.Schema({
     varianteChoisie: { type: String, default: '' }
   }],
 
-  montantTotal: {
-    type: Number,
-    required: true
-  },
+  montantTotal: { type:Number, required:true },
+  sousTotal: { type:Number, default:0, min:0 },
+  fraisLivraison: { type:Number, default:0, min:0 },
+  priseEnChargeLivraison: { type:String, enum:['client','vendeur','partage','gratuite'], default:'client' },
+  montantLivreur: { type:Number, default:0, min:0 },
+  livraison: { type:mongoose.Schema.Types.ObjectId, ref:'DemandeLivraison', default:null },
 
   livraisonDemandee: {
     type: Boolean,
@@ -39,9 +43,14 @@ const commandeSchema = new mongoose.Schema({
 
   statut: {
     type: String,
-    enum: ['en_attente', 'confirmée', 'expédiée', 'livrée', 'annulée'],
+    enum: ['en_attente', 'confirmée', 'préparation', 'expédiée', 'en_livraison', 'livrée', 'terminée', 'annulée'],
     default: 'en_attente'
   },
+
+  // ─── Traçabilité du paiement FedaPay ayant confirmé cette commande —
+  // la commande n'est créée qu'une fois le webhook FedaPay reçu (règle
+  // transversale n°2 : le frontend ne décide jamais qu'un paiement a réussi). ───
+  transactionPaiement: { type: mongoose.Schema.Types.ObjectId, ref: 'TransactionPaiement', default: null },
 
   adresseLivraison: {
     ville: { type: String, trim: true },
@@ -74,5 +83,15 @@ const commandeSchema = new mongoose.Schema({
 commandeSchema.index({ client: 1 });
 commandeSchema.index({ vendeur: 1 });
 commandeSchema.index({ boutique: 1, statut: 1 });
+
+commandeSchema.index({ transactionPaiement: 1 }, { unique: true, sparse: true });
+
+
+commandeSchema.pre('validate', function(next) {
+  if (!this.reference) {
+    this.reference = `CMD-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  }
+  next();
+});
 
 module.exports = mongoose.model('Commande', commandeSchema);

@@ -1,4 +1,7 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const { verifierIdTokenGoogle } = require('../utils/googleAuth');
+const { envoyerEmail, gabaritEmail } = require('../utils/email');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Annonce = require('../models/Annonce');
@@ -6,6 +9,9 @@ const Avis = require('../models/Avis');
 const { JWT_SECRET } = require('../config/jwt');
 
 // ─── Générer le token JWT ───
+const genererJetonAleatoire = () => crypto.randomBytes(32).toString('hex');
+const hacherJeton = (jeton) => crypto.createHash('sha256').update(jeton).digest('hex');
+
 const generateToken = (id) => {
   return jwt.sign({ id }, JWT_SECRET, {
     expiresIn: '30d'
@@ -31,9 +37,10 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
     }
 
-    // Hasher le mot de passe
+    if (String(motDePasse).length < 8) return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 8 caractères.' });
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(motDePasse, salt);
+    const verificationToken = genererJetonAleatoire();
 
     // Créer l'utilisateur
     const user = await User.create({
@@ -41,13 +48,19 @@ const register = async (req, res) => {
       prenom,
       email,
       motDePasse: hashedPassword,
+      fournisseurAuth: 'email',
+      emailVerifie: false,
+      emailVerificationTokenHash: hacherJeton(verificationToken),
+      emailVerificationExpireLe: new Date(Date.now() + 24 * 60 * 60 * 1000),
       telephone: telephone || '',
       localisation: {
         ville: ville.trim()
       }
     });
 
-    // Réponse (sans le mot de passe)
+    const lienVerification = `${process.env.FRONTEND_URL || ''}/verification-email?token=${verificationToken}`;
+    await envoyerEmail({ to: user.email, sujet: 'Confirmez votre adresse email — Loka', html: gabaritEmail('Confirmez votre adresse email', '<p>Votre compte Loka est créé. Confirmez votre adresse email pour terminer l’inscription.</p>', lienVerification) });
+
     res.status(201).json({
       _id: user._id,
       nom: user.nom,
@@ -55,6 +68,9 @@ const register = async (req, res) => {
       email: user.email,
       telephone: user.telephone,
       localisation: user.localisation,
+      role: user.role,
+      statut: user.statut,
+      emailVerifie: user.emailVerifie,
       token: generateToken(user._id)
     });
 
@@ -84,11 +100,12 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
     }
 
-    // Vérifier le mot de passe
+    if (!user.motDePasse) return res.status(401).json({ message: 'Ce compte utilise la connexion Google.' });
     const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
     if (!isMatch) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
     }
+    if (!user.emailVerifie) return res.status(403).json({ message: 'Veuillez confirmer votre adresse email avant de vous connecter.', emailVerifie: false });
 
     res.json({
       _id: user._id,
@@ -99,6 +116,9 @@ const login = async (req, res) => {
       photo: user.photo,
       localisation: user.localisation,
       estVerifie: user.estVerifie,
+      emailVerifie: user.emailVerifie,
+      role: user.role,
+      statut: user.statut,
       token: generateToken(user._id)
     });
 
@@ -106,6 +126,52 @@ const login = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: 'Erreur serveur.' });
   }
+};
+
+
+
+// POST /api/users/google
+const loginGoogle = async (req, res) => {
+  try {
+    const payload = await verifierIdTokenGoogle(req.body?.idToken);
+    const email = String(payload.email).toLowerCase().trim();
+    let user = await User.findOne({ $or: [{ googleId: payload.sub }, { email }] });
+    if (!user) {
+      user = await User.create({ nom: payload.family_name || 'Utilisateur', prenom: payload.given_name || 'Google', email, motDePasse: null, fournisseurAuth: 'google', googleId: payload.sub, emailVerifie: true, photo: payload.picture || '' });
+    } else {
+      if (user.googleId && user.googleId !== payload.sub) return res.status(409).json({ message: 'Ce compte Google est déjà associé à un autre compte.' });
+      user.googleId = payload.sub; user.fournisseurAuth = 'google'; user.emailVerifie = true; if (!user.photo && payload.picture) user.photo = payload.picture; await user.save();
+    }
+    return res.json({ _id:user._id, nom:user.nom, prenom:user.prenom, email:user.email, telephone:user.telephone, photo:user.photo, localisation:user.localisation, estVerifie:user.estVerifie, emailVerifie:true, role:user.role, statut:user.statut, token:generateToken(user._id) });
+  } catch (e) { console.error('Google auth:', e.message); return res.status(401).json({ message: 'Connexion Google invalide ou expirée.' }); }
+};
+
+const verifierEmail = async (req, res) => {
+  try {
+    const token = String(req.query.token || ''); if (!token) return res.status(400).json({ message: 'Jeton de confirmation manquant.' });
+    const user = await User.findOne({ emailVerificationTokenHash:hacherJeton(token), emailVerificationExpireLe:{ $gt:new Date() } }).select('+emailVerificationTokenHash +emailVerificationExpireLe');
+    if (!user) return res.status(400).json({ message:'Lien de confirmation invalide ou expiré.' });
+    user.emailVerifie=true; user.emailVerificationTokenHash=null; user.emailVerificationExpireLe=null; await user.save();
+    return res.json({ message:'Adresse email confirmée.', token:generateToken(user._id) });
+  } catch(e){ return res.status(500).json({message:'Erreur serveur.'}); }
+};
+
+const renvoyerVerification = async (req,res) => {
+  try {
+    const {email}=req.body||{}; const user=await User.findOne({email:String(email||'').toLowerCase().trim()}).select('+emailVerificationTokenHash +emailVerificationExpireLe');
+    if(!user || user.emailVerifie) return res.json({message:'Si un compte non confirmé correspond à cet email, un nouveau lien a été envoyé.'});
+    const token=genererJetonAleatoire(); user.emailVerificationTokenHash=hacherJeton(token); user.emailVerificationExpireLe=new Date(Date.now()+24*60*60*1000); await user.save();
+    const lien=`${process.env.FRONTEND_URL||''}/verification-email?token=${token}`; await envoyerEmail({to:user.email,sujet:'Nouveau lien de confirmation — Loka',html:gabaritEmail('Confirmez votre adresse email','<p>Voici votre nouveau lien de confirmation.</p>',lien)});
+    res.json({message:'Si un compte non confirmé correspond à cet email, un nouveau lien a été envoyé.'});
+  }catch(e){res.status(500).json({message:'Erreur serveur.'});}
+};
+
+const demanderResetMotDePasse = async (req,res) => {
+  try { const user=await User.findOne({email:String(req.body?.email||'').toLowerCase().trim()}).select('+passwordResetTokenHash +passwordResetExpireLe'); if(user?.motDePasse){const token=genererJetonAleatoire(); user.passwordResetTokenHash=hacherJeton(token); user.passwordResetExpireLe=new Date(Date.now()+30*60*1000); await user.save(); const lien=`${process.env.FRONTEND_URL||''}/reset-password?token=${token}`; await envoyerEmail({to:user.email,sujet:'Réinitialiser votre mot de passe — Loka',html:gabaritEmail('Réinitialisation du mot de passe','<p>Ce lien est valable 30 minutes.</p>',lien)});} return res.json({message:'Si un compte correspond à cet email, un lien de réinitialisation a été envoyé.'}); } catch(e){res.status(500).json({message:'Erreur serveur.'});}
+};
+
+const resetMotDePasse = async (req,res) => {
+  try { const {token,nouveauMotDePasse,confirmation}=req.body||{}; if(!token||!nouveauMotDePasse||nouveauMotDePasse.length<8||nouveauMotDePasse!==confirmation)return res.status(400).json({message:'Jeton ou mot de passe invalide.'}); const user=await User.findOne({passwordResetTokenHash:hacherJeton(token),passwordResetExpireLe:{$gt:new Date()}}).select('+passwordResetTokenHash +passwordResetExpireLe'); if(!user)return res.status(400).json({message:'Lien invalide ou expiré.'}); user.motDePasse=await bcrypt.hash(nouveauMotDePasse,10); user.fournisseurAuth='email'; user.passwordResetTokenHash=null; user.passwordResetExpireLe=null; await user.save(); res.json({message:'Mot de passe réinitialisé.'}); } catch(e){res.status(500).json({message:'Erreur serveur.'});}
 };
 
 // ─── Profil utilisateur connecté ───
@@ -286,5 +352,5 @@ const getFavoris = async (req, res) => {
 
 module.exports = {
   register, login, getProfil, updateProfil, deleteAccount, changePassword,
-  toggleFavori, getFavoris
+  toggleFavori, getFavoris, loginGoogle, verifierEmail, renvoyerVerification, demanderResetMotDePasse, resetMotDePasse
 };

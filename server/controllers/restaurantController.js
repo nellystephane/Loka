@@ -85,7 +85,7 @@ const getRestaurants = async (req, res) => {
     if (recherche) filtre.$text = { $search: recherche };
 
     const [restaurants, total] = await Promise.all([
-      Restaurant.find(filtre).sort({ 'abonnementPro.actif': -1, createdAt: -1 }).skip((pageNormalisee - 1) * limiteNormalisee).limit(limiteNormalisee),
+      Restaurant.find(filtre).sort({ 'abonnementPro.priorite': -1, createdAt: -1 }).skip((pageNormalisee - 1) * limiteNormalisee).limit(limiteNormalisee),
       Restaurant.countDocuments(filtre)
     ]);
 

@@ -13,6 +13,7 @@ const {
   getStatutPro
 } = require('../controllers/paiementController');
 const auth = require('../middleware/auth');
+const { validerPaiementPro } = require('../utils/validation');
 
 // ─── Routes publiques ───
 router.get('/offres', getOffres);
@@ -20,7 +21,7 @@ router.get('/offres-pro', getOffresPro);
 
 // ─── Routes protégées ───
 router.post('/', auth, createPaiement);
-router.post('/pro', auth, createPaiementPro);
+router.post('/pro', auth, validerPaiementPro, createPaiementPro);
 router.get('/statut', auth, getStatutAbonnement);
 router.get('/statut-pro', auth, getStatutPro);
 router.get('/historique', auth, getHistorique);

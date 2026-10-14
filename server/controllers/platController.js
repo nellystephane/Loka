@@ -1,5 +1,7 @@
 const Plat = require('../models/Plat');
 const Restaurant = require('../models/Restaurant');
+const { accordeMiseEnAvant } = require('../utils/abonnementPro');
+const { getPublishedSpaceIds } = require('../utils/storefrontVisibility');
 
 const exigerRestaurant = async (userId) => {
   const restaurant = await Restaurant.findOne({ proprietaire: userId });
@@ -52,7 +54,7 @@ const updatePlat = async (req, res) => {
 
     if (req.body.estMisEnAvant !== undefined) {
       const restaurant = await Restaurant.findById(plat.restaurant);
-      if (restaurant?.abonnementPro?.actif) {
+      if (accordeMiseEnAvant(restaurant?.abonnementPro)) {
         plat.estMisEnAvant = !!req.body.estMisEnAvant;
       } else if (req.body.estMisEnAvant) {
         return res.status(403).json({ message: "La mise en avant nécessite un abonnement Pro pour votre restaurant." });
@@ -84,6 +86,23 @@ const deletePlat = async (req, res) => {
   }
 };
 
+
+// ─── Détail public d'un plat disponible ───
+const getPlatById = async (req, res) => {
+  try {
+    const publishedSpaceIds = await getPublishedSpaceIds('restauration');
+    const plat = await Plat.findOne({ _id: req.params.id, disponible: true, restaurant: { $in: publishedSpaceIds } }).populate({
+      path: 'restaurant',
+      match: { statut: 'active' },
+      select: 'nom description logo banniere localisation proprietaire serviceSurPlace serviceAEmporter'
+    });
+    if (!plat || !plat.restaurant) return res.status(404).json({ message: 'Plat indisponible.' });
+    return res.json(plat);
+  } catch (error) {
+    return res.status(500).json({ message: 'Impossible de charger ce plat.' });
+  }
+};
+
 // ─── Catalogue public des plats (toutes cartes confondues) ───
 // GET /api/plats?categorie=&ville=&recherche=&page=&limite=
 const getPlats = async (req, res) => {
@@ -92,13 +111,15 @@ const getPlats = async (req, res) => {
     const pageNormalisee = Math.max(1, parseInt(page) || 1);
     const limiteNormalisee = Math.min(50, Math.max(1, parseInt(limite) || 20));
 
-    const filtre = { disponible: true };
+    const publishedSpaceIds = await getPublishedSpaceIds('restauration');
+    const filtre = { disponible: true, restaurant: { $in: publishedSpaceIds } };
     if (categorie) filtre.categorie = categorie;
     if (recherche) filtre.$text = { $search: recherche };
 
+    const villeRegex = ville ? new RegExp(String(ville).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     let requete = Plat.find(filtre).populate({
       path: 'restaurant',
-      match: ville ? { 'localisation.ville': new RegExp(ville, 'i') } : {}
+      match: { statut: 'active', ...(villeRegex ? { 'localisation.ville': villeRegex } : {}) }
     });
 
     const tousLesPlats = await requete
@@ -115,4 +136,4 @@ const getPlats = async (req, res) => {
   }
 };
 
-module.exports = { createPlat, updatePlat, deletePlat, getPlats };
+module.exports = { createPlat, updatePlat, deletePlat, getPlatById, getPlats };

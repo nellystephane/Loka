@@ -18,13 +18,26 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  motDePasse: {
-    type: String,
-    required: true
-  },
+  motDePasse: { type: String, default: null },
+  fournisseurAuth: { type: String, enum: ['email', 'google'], default: 'email' },
+  googleId: { type: String, unique: true, sparse: true, index: true },
+  emailVerifie: { type: Boolean, default: true },
+  emailVerificationTokenHash: { type: String, default: null, select: false },
+  emailVerificationExpireLe: { type: Date, default: null, select: false },
+  passwordResetTokenHash: { type: String, default: null, select: false },
+  passwordResetExpireLe: { type: Date, default: null, select: false },
   telephone: {
     type: String,
     trim: true
+  },
+  paiement: {
+    payoutActif: { type: Boolean, default: false },
+    methode: { type: String, enum: ['mtn','moov','orange','celtiis','wave','bank', null], default: null },
+    numero: { type: String, trim: true, default: '' },
+    pays: { type: String, trim: true, default: 'bj' },
+    nomBeneficiaire: { type: String, trim: true, default: '' },
+    emailBeneficiaire: { type: String, trim: true, default: '' },
+    fedaPayPayoutId: { type: String, default: null }
   },
   photo: {
     type: String,
@@ -46,7 +59,9 @@ const userSchema = new mongoose.Schema({
     details: {
       type: String,
       trim: true
-    }
+    },
+    latitude: { type: Number, min: -90, max: 90, default: null },
+    longitude: { type: Number, min: -180, max: 180, default: null }
   }, 
   estVerifie: {
     type: Boolean,
@@ -64,7 +79,29 @@ const userSchema = new mongoose.Schema({
   favoris: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Annonce'
-  }]
+  }],
+
+  // ─── Rôle et modération (chantier back-office / administration). Un seul
+  // rôle admin plat pour l'instant — pas de granularité de permissions,
+  // volontairement simple pour un back-office qui reste à ses débuts. ───
+  role: {
+    type: String,
+    enum: ['utilisateur', 'admin'],
+    default: 'utilisateur'
+  },
+  statut: {
+    type: String,
+    enum: ['actif', 'suspendu'],
+    default: 'actif'
+  },
+  // ─── Renseigné uniquement quand statut === 'suspendu' ; conservé après
+  // réactivation à titre d'historique (dernière suspension connue). ───
+  suspension: {
+    motif: { type: String, trim: true, default: '' },
+    suspenduPar: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    dateSuspension: { type: Date, default: null },
+    dateReactivation: { type: Date, default: null }
+  }
 }, {
   timestamps: true
 });

@@ -1,15 +1,9 @@
-# environnement
-.env
-
-# dépendances
 node_modules/
-
-# logs
-*.log
-
-# fichiers système
-.DS_Store
-
-# artefacts de build générés par tsc
-client/vite.config.d.ts
+dist/
 client/dist/
+server/uploads/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store

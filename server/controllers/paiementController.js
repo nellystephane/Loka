@@ -5,26 +5,49 @@ const Boutique = require('../models/Boutique');
 const Restaurant = require('../models/Restaurant');
 const Hotel = require('../models/Hotel');
 const Livreur = require('../models/Livreur');
+const AgenceLivraison = require('../models/AgenceLivraison');
+const PresenceProfessionnelle = require('../models/PresenceProfessionnelle');
 const { AVANTAGES_GRATUIT } = require('../utils/abonnement');
+const { prioriteDuPlan } = require('../utils/abonnementPro');
+const { creerCheckoutFedaPay } = require('../utils/fedapayClient');
+const { prioriteDuPlan: prioritePlan } = require('../utils/abonnementPro');
+const { GRILLE_PRO, prixPlan } = require('../utils/tarificationPro');
 
 // ─── Modèles des espaces métiers, par type ───
 const MODELES_ESPACE = {
   vente: Boutique,
   restauration: Restaurant,
   hotel: Hotel,
-  livraison: Livreur
+  livraison: Livreur,
+  livraison_individuel: Livreur,
+  agence_livraison: AgenceLivraison,
+  presence: PresenceProfessionnelle
 };
 
 // ─── Abonnement "Pro" des espaces métiers (Vente/Restauration/Hôtel/Livraison) ───
-// Distinct de l'abonnement annonces classique : donne accès à la mise en avant
-// des produits/plats/chambres de l'espace. Même grille tarifaire pour tous les
-// espaces, pour rester simple.
+// Distinct de l'abonnement annonces classique. Grille à 3 paliers, identique
+// pour tous les types d'espaces, pour rester simple :
+//   - starter ("Présence pro") : visibilité de base dans l'annuaire public
+//   - pro : + mise en avant illimitée des produits/plats/chambres
+//   - business : + priorité d'affichage dans les recherches et l'annuaire
 const PRIX_PRO = {
-  pro_mensuel: 5000,   // 5 000 XOF / mois
-  pro_annuel: 45000    // 45 000 XOF / an (vs 60 000 XOF si payé au mois)
+  ...GRILLE_PRO.vente,
+  starter_mensuel: GRILLE_PRO.vente.starter.mensuel,
+  starter_annuel: GRILLE_PRO.vente.starter.annuel,
+  pro_mensuel: GRILLE_PRO.vente.pro.mensuel,
+  pro_annuel: GRILLE_PRO.vente.pro.annuel,
+  business_mensuel: GRILLE_PRO.vente.business.mensuel,
+  business_annuel: GRILLE_PRO.vente.business.annuel
 };
 
 // ─── Avantages selon le type d'abonnement ───
+const AVANTAGES_PRO_PAR_PALIER = {
+  starter: { label:'Starter', sousTitre:'Présence professionnelle', description:'Vitrine publique et présence professionnelle.', avantages:['vitrine publique','catalogue de base','contact client'] },
+  pro: { label:'Pro', sousTitre:'Vendre et développer', description:'Plus de mise en avant et de personnalisation.', avantages:['avantages Starter','mise en avant','bibliothèque de templates Pro'] },
+  business: { label:'Business', sousTitre:'Gérer professionnellement', description:'Personnalisation avancée et modules métier premium.', avantages:['avantages Pro','templates Business','personnalisation avancée','réservation restaurant si applicable'] },
+  presence: { label:'Présence', sousTitre:'Être trouvé localement', description:'Une présence professionnelle publique simple.', avantages:['vitrine publique','coordonnées','localisation'] }
+};
+
 const AVANTAGES = {
   abonnement_30j: {
     nombreAnnonces: 5,
@@ -64,26 +87,41 @@ const getOffres = async (req, res) => {
   ]);
 };
 
-// ─── Offres Pro disponibles (identiques pour tous les espaces) ───
+// ─── Grille tarifaire Pro disponible (identique pour tous les espaces) ───
 // GET /api/paiements/offres-pro
+// Renvoie 3 paliers (Starter/Pro/Business), chacun avec son prix mensuel et
+// annuel, pour affichage en grille comparative côté client.
 const getOffresPro = async (req, res) => {
-  res.json([
-    { type: 'pro_mensuel', label: 'Pro mensuel', prix: PRIX_PRO.pro_mensuel, duree: '30 jours' },
-    { type: 'pro_annuel', label: 'Pro annuel', prix: PRIX_PRO.pro_annuel, duree: '360 jours' }
-  ]);
+  const espaceType = req.query.espaceType || 'vente';
+  const grille = GRILLE_PRO[espaceType];
+  if (!grille) return res.status(400).json({ message: 'Type d’espace invalide.' });
+
+  res.json(Object.entries(AVANTAGES_PRO_PAR_PALIER)
+    .filter(([palier]) => Object.prototype.hasOwnProperty.call(grille, palier))
+    .map(([palier, infos]) => ({
+      palier,
+      label: infos.label,
+      sousTitre: infos.sousTitre,
+      description: infos.description,
+      avantages: infos.avantages,
+      prixMensuel: prixPlan(espaceType, palier, 'mensuel'),
+      prixAnnuel: prixPlan(espaceType, palier, 'annuel')
+    })));
 };
 
 // ─── Initier un paiement Pro pour un espace métier ───
 // POST /api/paiements/pro
 const createPaiementPro = async (req, res) => {
   try {
-    const { type, espaceType, methode, operateur, numeroTransaction } = req.body;
+    const { type, espaceType, espaceId, methode, operateur, numeroTransaction } = req.body;
 
     if (!type || !espaceType || !methode) {
       return res.status(400).json({ message: 'Type d\'abonnement, espace et méthode de paiement sont obligatoires.' });
     }
-    if (!PRIX_PRO[type]) {
-      return res.status(400).json({ message: 'Type d\'abonnement Pro invalide.' });
+    const match = String(type).match(/^(starter|pro|business|presence)_(mensuel|annuel)$/);
+    const palierDemande = match?.[1];
+    if (!match || !prixPlan(espaceType, palierDemande, match[2])) {
+      return res.status(400).json({ message: 'Type d\'abonnement Pro invalide pour cet espace.' });
     }
     const Modele = MODELES_ESPACE[espaceType];
     if (!Modele) {
@@ -91,31 +129,36 @@ const createPaiementPro = async (req, res) => {
     }
 
     // Le champ propriétaire varie selon l'espace (proprietaire pour Boutique/Restaurant/Hotel, utilisateur pour Livreur)
-    const champProprietaire = espaceType === 'livraison' ? 'utilisateur' : 'proprietaire';
-    const espace = await Modele.findOne({ [champProprietaire]: req.user._id });
+    const champProprietaire = ['livraison', 'livraison_individuel'].includes(espaceType) ? 'utilisateur' : 'proprietaire';
+    const filtreProprietaire = { [champProprietaire]: req.user._id };
+    // Si le frontend a choisi un espace précis, vérifier sa propriété au lieu de prendre arbitrairement le premier espace du type.
+    const espace = espaceId
+      ? await Modele.findOne({ _id: espaceId, ...filtreProprietaire })
+      : await Modele.findOne(filtreProprietaire);
     if (!espace) {
       return res.status(404).json({ message: "Vous n'avez pas encore activé cet espace." });
     }
 
-    const montant = PRIX_PRO[type];
-    const dateDebut = new Date();
-    const dateFin = new Date();
-    if (type === 'pro_mensuel') dateFin.setDate(dateFin.getDate() + 30);
+    const montant = prixPlan(espaceType, match[1], match[2]);
+    const dateDebut = espace.abonnementPro?.actif && espace.abonnementPro.dateFin && new Date(espace.abonnementPro.dateFin) > new Date() ? new Date(espace.abonnementPro.dateFin) : new Date();
+    const dateFin = new Date(dateDebut);
+    if (type.endsWith('_mensuel')) dateFin.setDate(dateFin.getDate() + 30);
     else dateFin.setFullYear(dateFin.getFullYear() + 1);
 
     const paiement = await Paiement.create({
-      utilisateur: req.user._id,
-      type,
-      espaceType,
-      espaceId: espace._id,
-      montant,
-      methode,
-      operateur: operateur || null,
-      numeroTransaction: numeroTransaction || null,
-      dateDebut,
-      dateFin
+      utilisateur: req.user._id, type, espaceType, espaceId: espace._id, montant,
+      methode: ['mobile_money','carte','virement'].includes(methode) ? methode : 'carte',
+      operateur: operateur || null, numeroTransaction: null, dateDebut, dateFin
     });
-
+    try {
+      const checkout = await creerCheckoutFedaPay({ montant, description: `Loka — abonnement ${type}`, client: { firstname:req.user.prenom, lastname:req.user.nom, email:req.user.email, ...(req.user.telephone ? {phone_number:{number:req.user.telephone,country:'bj'}} : {}) } });
+      paiement.referenceFedaPay = checkout.referenceFedaPay;
+      paiement.lienPaiement = checkout.lienPaiement;
+      await paiement.save();
+    } catch (fedapayError) {
+      await Paiement.findByIdAndDelete(paiement._id);
+      throw fedapayError;
+    }
     res.status(201).json(paiement);
   } catch (error) {
     console.error(error);
@@ -135,14 +178,17 @@ const getStatutPro = async (req, res) => {
 
     const espace = await Modele.findById(espaceId);
     if (!espace) return res.status(404).json({ message: 'Espace introuvable.' });
+    const champProprietaire = ['livraison', 'livraison_individuel'].includes(espaceType) ? 'utilisateur' : 'proprietaire';
+    if (!espace[champProprietaire] || espace[champProprietaire].toString() !== req.user._id.toString()) return res.status(403).json({message:'Accès refusé.'});
 
     // L'abonnement peut avoir expiré depuis la dernière vérification
     if (espace.abonnementPro?.actif && espace.abonnementPro.dateFin && new Date(espace.abonnementPro.dateFin) < new Date()) {
       espace.abonnementPro.actif = false;
+      espace.abonnementPro.priorite = 0;
       await espace.save();
     }
 
-    res.json(espace.abonnementPro || { actif: false, plan: null, dateFin: null });
+    res.json(espace.abonnementPro || { actif: false, plan: null, dateFin: null, priorite: 0 });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Erreur serveur.' });
@@ -153,9 +199,8 @@ const getStatutPro = async (req, res) => {
 const activerAbonnementPro = async (paiement) => {
   const Modele = MODELES_ESPACE[paiement.espaceType];
   if (!Modele) return;
-  await Modele.findByIdAndUpdate(paiement.espaceId, {
-    abonnementPro: { actif: true, plan: paiement.type, dateFin: paiement.dateFin }
-  });
+  const priorite = paiement.espaceType === 'presence' ? 1 : prioriteDuPlan({ actif: true, plan: paiement.type });
+  await Modele.findByIdAndUpdate(paiement.espaceId, { $set:{ abonnementPro: { actif: true, plan: paiement.type, dateFin: paiement.dateFin, priorite } } });
 };
 
 // ─── Créer un paiement (initier un abonnement) ───
@@ -192,16 +237,19 @@ const createPaiement = async (req, res) => {
     }
 
     const paiement = await Paiement.create({
-      utilisateur: req.user._id,
-      type,
-      avantages,
-      montant,
-      methode,
-      operateur: operateur || null,
-      numeroTransaction: numeroTransaction || null,
-      dateDebut,
-      dateFin
+      utilisateur: req.user._id, type, avantages, montant,
+      methode: ['mobile_money','carte','virement'].includes(methode) ? methode : 'carte',
+      operateur: operateur || null, numeroTransaction: null, dateDebut, dateFin
     });
+    try {
+      const checkout = await creerCheckoutFedaPay({ montant, description: `Loka — abonnement ${type}`, client: { firstname:req.user.prenom, lastname:req.user.nom, email:req.user.email, ...(req.user.telephone ? {phone_number:{number:req.user.telephone,country:'bj'}} : {}) } });
+      paiement.referenceFedaPay = checkout.referenceFedaPay;
+      paiement.lienPaiement = checkout.lienPaiement;
+      await paiement.save();
+    } catch (fedapayError) {
+      await Paiement.findByIdAndDelete(paiement._id);
+      throw fedapayError;
+    }
 
     // Mettre à jour les annonces existantes avec les nouveaux avantages
     if (avantages.miseEnAvant) {
@@ -346,6 +394,7 @@ const confirmerPaiement = async (req, res) => {
 // la confirmation devra alors provenir uniquement du webhook de l'opérateur.
 const simulerConfirmation = async (req, res) => {
   try {
+    if (process.env.NODE_ENV === 'production' || process.env.ALLOW_PAYMENT_SIMULATION !== 'true') return res.status(404).json({message:'Simulation de paiement désactivée.'});
     const paiement = await Paiement.findById(req.params.id);
 
     if (!paiement) {
@@ -428,6 +477,7 @@ const getPaiementById = async (req, res) => {
 };
 
 module.exports = {
+  activerAbonnementPro,
   createPaiement,
   getStatutAbonnement,
   getHistorique,
@@ -440,5 +490,6 @@ module.exports = {
   getStatutPro,
   PRIX,
   AVANTAGES,
-  PRIX_PRO
+  PRIX_PRO,
+  AVANTAGES_PRO_PAR_PALIER
 };

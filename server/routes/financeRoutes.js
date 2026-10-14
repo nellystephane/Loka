@@ -1,0 +1,1 @@
+const express=require('express');const router=express.Router();const auth=require('../middleware/auth');const {getMesFinances}=require('../controllers/financeController');router.get('/moi',auth,getMesFinances);module.exports=router;

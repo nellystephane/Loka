@@ -5,7 +5,7 @@ require('dotenv').config();
 // le fallback ci-dessous est public (versionné sur GitHub), donc l'utiliser en
 // production permettrait à quiconque de forger un token valide pour n'importe
 // quel compte. On refuse donc de démarrer en production sans clé définie.
-const FALLBACK_DEV_UNIQUEMENT = 'proxiconnect_dev_secret_a_changer';
+const FALLBACK_DEV_UNIQUEMENT = 'loka_dev_secret_a_changer';
 
 if (!process.env.JWT_SECRET) {
   if (process.env.NODE_ENV === 'production') {

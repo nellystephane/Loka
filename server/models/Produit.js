@@ -42,6 +42,7 @@ const produitSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  categorieId: { type: mongoose.Schema.Types.ObjectId, ref: 'CategorieBoutique', default: null },
 
   prix: {
     type: Number,
@@ -49,6 +50,18 @@ const produitSchema = new mongoose.Schema({
     min: 0
   },
   quantiteDisponible: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
+  },
+  // ─── État "Réservé" (section 6.1) : unités bloquées par une offre acceptée
+  // en attente de paiement, ou par une commande classique en attente de
+  // paiement FedaPay. Ne fait pas partie du stock vendable tant que le
+  // paiement n'est pas confirmé, mais n'est pas non plus définitivement
+  // sorti du stock — elle revient à quantiteDisponible si le paiement
+  // échoue, expire, ou si l'offre est refusée/annulée. ───
+  quantiteReservee: {
     type: Number,
     required: true,
     min: 0,
@@ -62,9 +75,15 @@ const produitSchema = new mongoose.Schema({
 
   // ─── Variantes (taille, couleur, etc.) ───
   variantes: [{
-    nom: { type: String, trim: true },   // ex: "Taille", "Couleur"
-    valeurs: [{ type: String, trim: true }] // ex: ["S", "M", "L"]
+    nom: { type: String, trim: true },
+    valeurs: [{ type: String, trim: true }]
   }],
+
+  // Attributs libres dépendants du type de produit : matière, garantie,
+  // ingrédients, origine, volume, composition, entretien, etc.
+  attributs: { type: mongoose.Schema.Types.Mixed, default: {} },
+  tags: { type: [String], default: [] },
+  collections: [{ type: mongoose.Schema.Types.ObjectId, ref: 'CollectionBoutique' }],
 
   etat: {
     type: String,

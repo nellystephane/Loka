@@ -1,0 +1,10 @@
+const express=require('express');const router=express.Router();const auth=require('../middleware/auth');const optionalAuth=require('../middleware/optionalAuth');const c=require('../controllers/storefrontController');
+router.get('/public/:slug/data',c.publicData);
+router.get('/public-space/:type/:id',c.publicBySpace);
+router.get('/public/:slug',c.publicBySlug);
+router.get('/editor-data',auth,c.editorData);
+router.get('/templates',auth,c.templates);
+router.get('/entitlements',auth,c.entitlements);
+router.get('/',optionalAuth,c.get);
+router.put('/',auth,c.save);
+module.exports=router;

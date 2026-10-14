@@ -5,7 +5,7 @@ const AVANTAGES_GRATUIT = {
   nombreAnnonces: 1,
   videoAutorisee: false,
   miseEnAvant: false,
-  dureeAnnonce: 15
+  dureeAnnonce: 14
 };
 
 // ─── Retourne les avantages actuellement actifs d'un utilisateur ───

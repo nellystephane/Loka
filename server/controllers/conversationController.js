@@ -88,7 +88,7 @@ const getMessages = async (req, res) => {
       return res.status(403).json({ message: "Vous ne participez pas à cette conversation." });
     }
 
-    const messages = await Message.find({ conversation: conversation._id }).sort({ createdAt: 1 });
+    const messages = await Message.find({ conversation: conversation._id }).populate('offre').populate('offreLivraison').sort({ createdAt: 1 });
 
     // Marquer comme lus les messages de l'autre personne
     await Message.updateMany(

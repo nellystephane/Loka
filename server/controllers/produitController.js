@@ -1,5 +1,7 @@
 const Produit = require('../models/Produit');
 const Boutique = require('../models/Boutique');
+const { accordeMiseEnAvant } = require('../utils/abonnementPro');
+const { getPublishedSpaceIds } = require('../utils/storefrontVisibility');
 
 // ─── Récupérer la boutique de l'utilisateur ou renvoyer une erreur ───
 const exigerBoutique = async (userId) => {
@@ -20,7 +22,7 @@ const createProduit = async (req, res) => {
 
     const {
       nom, description, categorie, prix, quantiteDisponible,
-      photos, variantes, etat, marque, modele, livraisonPossible
+      photos, variantes, attributs, tags, collections, categorieId, etat, marque, modele, livraisonPossible
     } = req.body;
 
     if (!nom || !description || !categorie || prix === undefined) {
@@ -35,6 +37,10 @@ const createProduit = async (req, res) => {
       quantiteDisponible: quantiteDisponible ?? 0,
       photos: photos || [],
       variantes: variantes || [],
+      categorieId: categorieId || null,
+      attributs: attributs || {},
+      tags: tags || [],
+      collections: collections || [],
       etat: etat || 'neuf',
       marque: marque || '',
       modele: modele || '',
@@ -59,7 +65,7 @@ const updateProduit = async (req, res) => {
 
     const champsAutorises = [
       'nom', 'description', 'categorie', 'prix', 'quantiteDisponible',
-      'photos', 'variantes', 'etat', 'marque', 'modele', 'livraisonPossible', 'statut'
+      'photos', 'variantes', 'categorieId', 'attributs', 'tags', 'collections', 'etat', 'marque', 'modele', 'livraisonPossible', 'statut'
     ];
     champsAutorises.forEach((champ) => {
       if (req.body[champ] !== undefined) produit[champ] = req.body[champ];
@@ -68,7 +74,7 @@ const updateProduit = async (req, res) => {
     // La mise en avant est réservée aux boutiques ayant un abonnement Pro actif.
     if (req.body.estMisEnAvant !== undefined) {
       const boutique = await Boutique.findById(produit.boutique);
-      if (boutique?.abonnementPro?.actif) {
+      if (accordeMiseEnAvant(boutique?.abonnementPro)) {
         produit.estMisEnAvant = !!req.body.estMisEnAvant;
       } else if (req.body.estMisEnAvant) {
         return res.status(403).json({ message: "La mise en avant nécessite un abonnement Pro pour votre boutique." });
@@ -104,8 +110,12 @@ const deleteProduit = async (req, res) => {
 // GET /api/produits/:id
 const getProduitById = async (req, res) => {
   try {
-    const produit = await Produit.findById(req.params.id).populate('boutique');
-    if (!produit) return res.status(404).json({ message: 'Produit non trouvé.' });
+    const publishedSpaceIds = await getPublishedSpaceIds('vente');
+    const produit = await Produit.findOne({ _id: req.params.id, statut: 'disponible', boutique: { $in: publishedSpaceIds } }).populate({
+      path: 'boutique',
+      match: { statut: 'active' },
+    });
+    if (!produit || !produit.boutique) return res.status(404).json({ message: 'Produit indisponible.' });
 
     produit.nombreVues += 1;
     await produit.save();
@@ -125,13 +135,15 @@ const getProduits = async (req, res) => {
     const pageNormalisee = Math.max(1, parseInt(page) || 1);
     const limiteNormalisee = Math.min(50, Math.max(1, parseInt(limite) || 20));
 
-    const filtre = { statut: 'disponible' };
+    const publishedSpaceIds = await getPublishedSpaceIds('vente');
+    const filtre = { statut: 'disponible', boutique: { $in: publishedSpaceIds } };
     if (categorie) filtre.categorie = categorie;
     if (recherche) filtre.$text = { $search: recherche };
 
+    const villeRegex = ville ? new RegExp(String(ville).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     let requete = Produit.find(filtre).populate({
       path: 'boutique',
-      match: ville ? { 'localisation.ville': new RegExp(ville, 'i') } : {}
+      match: { statut: 'active', ...(villeRegex ? { 'localisation.ville': villeRegex } : {}) }
     });
 
     const tousLesProduits = await requete

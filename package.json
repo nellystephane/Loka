@@ -1,5 +1,12 @@
 {
-  "devDependencies": {
-    "gh-pages": "^6.3.0"
+  "name": "loka",
+  "private": true,
+  "version": "18.0.0",
+  "scripts": {
+    "client:dev": "npm --prefix client run dev",
+    "client:build": "npm --prefix client run build",
+    "server:dev": "npm --prefix server run dev",
+    "server:start": "npm --prefix server start",
+    "server:test": "npm --prefix server test"
   }
 }

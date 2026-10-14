@@ -3,7 +3,9 @@ const Plat = require('../models/Plat');
 const Restaurant = require('../models/Restaurant');
 const { creerNotification } = require('../utils/notifier');
 
-// ─── Passer une commande au restaurant ───
+// ─── ⚠️ DÉPRÉCIÉ — n'est plus monté sur aucune route (voir
+// routes/commandeRestaurantRoutes.js). Le parcours actif est
+// POST /api/paiements-commande/initier (paiementCommandeController.js). ───
 // POST /api/commandes-restaurant
 const createCommande = async (req, res) => {
   try {
@@ -110,7 +112,7 @@ const getCommandesRecues = async (req, res) => {
 const updateStatutCommande = async (req, res) => {
   try {
     const { statut } = req.body;
-    const statutsValides = ['en_attente', 'en_préparation', 'prête', 'livrée', 'annulée'];
+    const statutsValides = ['en_attente', 'confirmée', 'en_préparation', 'prête', 'en_livraison', 'livrée', 'terminée', 'annulée'];
     if (!statutsValides.includes(statut)) {
       return res.status(400).json({ message: 'Statut invalide.' });
     }
@@ -121,6 +123,29 @@ const updateStatutCommande = async (req, res) => {
       return res.status(403).json({ message: 'Seul le restaurateur peut mettre à jour cette commande.' });
     }
 
+    const transitions = {
+      en_attente: ['confirmée', 'annulée'],
+      confirmée: ['en_préparation', 'annulée'],
+      en_préparation: ['prête'],
+      prête: commande.livraison ? ['en_livraison'] : ['terminée'],
+      en_livraison: ['livrée'],
+      livrée: ['terminée'],
+      terminée: [],
+      annulée: []
+    };
+    if (!transitions[commande.statut]?.includes(statut)) {
+      return res.status(409).json({ message: `Transition ${commande.statut} → ${statut} interdite.` });
+    }
+    if (statut === 'annulée') {
+      return res.status(409).json({ message: 'Une commande déjà payée ne peut pas être annulée directement. Utilisez le parcours de remboursement.' });
+    }
+    if (commande.livraison && ['livrée','terminée'].includes(statut)) {
+      const DemandeLivraison = require('../models/DemandeLivraison');
+      const livraison = await DemandeLivraison.findById(commande.livraison).select('statut livraisonValideeLe');
+      if (!livraison || livraison.statut !== 'livrée' || !livraison.livraisonValideeLe) {
+        return res.status(409).json({ message: 'La commande ne peut être livrée avant la validation de sa remise.' });
+      }
+    }
     commande.statut = statut;
     await commande.save();
 

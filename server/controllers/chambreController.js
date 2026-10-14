@@ -1,5 +1,6 @@
 const Chambre = require('../models/Chambre');
 const Hotel = require('../models/Hotel');
+const { accordeMiseEnAvant } = require('../utils/abonnementPro');
 
 const exigerHotel = async (userId) => {
   const hotel = await Hotel.findOne({ proprietaire: userId });
@@ -14,7 +15,7 @@ const exigerHotel = async (userId) => {
 const createChambre = async (req, res) => {
   try {
     const hotel = await exigerHotel(req.user._id);
-    const { type, prixParNuit, capacite, photos, equipements } = req.body;
+    const { nom, type, typeNormalise, description, prixParNuit, capacite, capaciteAdultes, capaciteEnfants, nombreUnites, photos, equipements, servicesInclus, options } = req.body;
 
     if (!type || prixParNuit === undefined) {
       return res.status(400).json({ message: 'Type et prix par nuit sont obligatoires.' });
@@ -23,10 +24,19 @@ const createChambre = async (req, res) => {
     const chambre = await Chambre.create({
       hotel: hotel._id,
       createur: req.user._id,
-      type, prixParNuit,
+      nom: nom || '',
+      type,
+      typeNormalise: typeNormalise || type,
+      description: description || '',
+      prixParNuit,
       capacite: capacite || 2,
+      capaciteAdultes: capaciteAdultes || capacite || 2,
+      capaciteEnfants: capaciteEnfants || 0,
+      nombreUnites: nombreUnites || 1,
       photos: photos || [],
-      equipements: equipements || []
+      equipements: equipements || [],
+      servicesInclus: servicesInclus || [],
+      options: options || []
     });
 
     res.status(201).json(chambre);
@@ -43,14 +53,14 @@ const updateChambre = async (req, res) => {
       return res.status(403).json({ message: 'Vous ne pouvez modifier que vos propres chambres.' });
     }
 
-    const champsAutorises = ['type', 'prixParNuit', 'capacite', 'photos', 'equipements', 'disponible'];
+    const champsAutorises = ['nom', 'type', 'typeNormalise', 'description', 'prixParNuit', 'capacite', 'capaciteAdultes', 'capaciteEnfants', 'nombreUnites', 'photos', 'equipements', 'servicesInclus', 'options', 'disponible'];
     champsAutorises.forEach((champ) => {
       if (req.body[champ] !== undefined) chambre[champ] = req.body[champ];
     });
 
     if (req.body.estMisEnAvant !== undefined) {
       const hotel = await Hotel.findById(chambre.hotel);
-      if (hotel?.abonnementPro?.actif) {
+      if (accordeMiseEnAvant(hotel?.abonnementPro)) {
         chambre.estMisEnAvant = !!req.body.estMisEnAvant;
       } else if (req.body.estMisEnAvant) {
         return res.status(403).json({ message: "La mise en avant nécessite un abonnement Pro pour votre établissement." });

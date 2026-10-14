@@ -46,17 +46,24 @@ const boutiqueSchema = new mongoose.Schema({
     details: { type: String, trim: true }
   },
 
-  statut: {
-    type: String,
-    enum: ['active', 'suspendue'],
-    default: 'active'
-  },
+  statut: { type: String, enum: ['active', 'suspendue'], default: 'active' },
+
+  // États indépendants : une expiration d'abonnement ne supprime jamais la vitrine.
+  vitrine: { actif: {type:Boolean,default:true}, publiee: {type:Boolean,default:true} },
+  activite: { statut: {type:String,enum:['active','suspendue','en_configuration'],default:'active'} },
+  finance: { statut: {type:String,enum:['incomplete','prete','bloquee'],default:'incomplete'} },
 
   // ─── Abonnement Pro (distinct de l'abonnement annonces classique) ───
   abonnementPro: {
     actif: { type: Boolean, default: false },
-    plan: { type: String, enum: ['pro_mensuel', 'pro_annuel', null], default: null },
-    dateFin: { type: Date, default: null }
+    plan: {
+      type: String,
+      enum: ['starter_mensuel', 'starter_annuel', 'pro_mensuel', 'pro_annuel', 'business_mensuel', 'business_annuel', null],
+      default: null
+    },
+    dateFin: { type: Date, default: null },
+    // Rang de priorité pour le tri de l'annuaire public (0 = inactif, 1 = Starter, 2 = Pro, 3 = Business)
+    priorite: { type: Number, default: 0 }
   }
 
 }, {

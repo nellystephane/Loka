@@ -5,6 +5,13 @@ const TYPES_NOTIFICATION = [
   'piece_jointe',
   'nouvelle_commande',
   'statut_commande',
+  'offre',
+  'offre_refusee',
+  'offre_livraison',
+  'offre_livraison_contre_proposition',
+  'offre_livraison_refusee',
+  'offre_livraison_acceptee',
+  'paiement_echoue',
   'nouvelle_reservation',
   'statut_reservation',
   'demande_livraison_acceptee',
@@ -13,7 +20,12 @@ const TYPES_NOTIFICATION = [
   'nouvel_avis',
   'paiement_confirme',
   'demande_evaluation',
-  'nouvelle_evaluation_livreur'
+  'nouvelle_evaluation_livreur',
+  // ─── Back-office / administration (priorité 7 de la section 11.1) ───
+  'compte_suspendu',
+  'compte_reactive',
+  'litige_traite',
+  'payout_verse'
 ];
 
 // ─── Notification ───

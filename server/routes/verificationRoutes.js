@@ -1,0 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const auth = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth');
+const c = require('../controllers/verificationController');
+router.post('/', auth, c.demander);
+router.get('/miennes', auth, c.miennes);
+router.get('/admin', auth, adminAuth, c.listeAdmin);
+router.put('/:id', auth, adminAuth, c.traiter);
+module.exports = router;

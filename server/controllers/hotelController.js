@@ -8,7 +8,7 @@ const createHotel = async (req, res) => {
       return res.status(409).json({ message: 'Vous avez déjà un hôtel.', hotelId: existant._id });
     }
 
-    const { nom, description, photos, equipements, logo, couleurPrincipale, localisation } = req.body;
+    const { nom, slogan, description, histoire, photos, photoHero, equipements, services, logo, couleurPrincipale, contact, localisation, horaires, politiques } = req.body;
     if (!nom || !nom.trim()) {
       return res.status(400).json({ message: "Le nom de l'établissement est obligatoire." });
     }
@@ -16,12 +16,19 @@ const createHotel = async (req, res) => {
     const hotel = await Hotel.create({
       proprietaire: req.user._id,
       nom: nom.trim(),
+      slogan: slogan || '',
       description: description || '',
+      histoire: histoire || '',
       photos: photos || [],
+      photoHero: photoHero || '',
       equipements: equipements || [],
+      services: services || [],
       logo: logo || '',
       couleurPrincipale: couleurPrincipale || '#007AFF',
-      localisation: localisation || {}
+      contact: contact || {},
+      localisation: localisation || {},
+      horaires: horaires || {},
+      politiques: politiques || {}
     });
 
     res.status(201).json(hotel);
@@ -69,7 +76,7 @@ const getHotels = async (req, res) => {
     if (recherche) filtre.$text = { $search: recherche };
 
     const [hotels, total] = await Promise.all([
-      Hotel.find(filtre).sort({ 'abonnementPro.actif': -1, createdAt: -1 }).skip((pageNormalisee - 1) * limiteNormalisee).limit(limiteNormalisee),
+      Hotel.find(filtre).sort({ 'abonnementPro.priorite': -1, createdAt: -1 }).skip((pageNormalisee - 1) * limiteNormalisee).limit(limiteNormalisee),
       Hotel.countDocuments(filtre)
     ]);
 
@@ -85,7 +92,7 @@ const updateHotel = async (req, res) => {
     const hotel = await Hotel.findOne({ proprietaire: req.user._id });
     if (!hotel) return res.status(404).json({ message: "Vous n'avez pas encore d'établissement." });
 
-    const champsAutorises = ['nom', 'description', 'photos', 'equipements', 'logo', 'couleurPrincipale', 'localisation'];
+    const champsAutorises = ['nom', 'slogan', 'description', 'histoire', 'photos', 'photoHero', 'equipements', 'services', 'logo', 'couleurPrincipale', 'contact', 'localisation', 'horaires', 'politiques'];
     champsAutorises.forEach((champ) => {
       if (req.body[champ] !== undefined) hotel[champ] = req.body[champ];
     });

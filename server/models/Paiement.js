@@ -10,7 +10,12 @@ const paiementSchema = new mongoose.Schema({
 
   type: {
     type: String,
-    enum: ['abonnement_30j', 'abonnement_90j', 'abonnement_annuel', 'pro_mensuel', 'pro_annuel'],
+    enum: [
+      'abonnement_30j', 'abonnement_90j', 'abonnement_annuel',
+      'starter_mensuel', 'starter_annuel',
+      'pro_mensuel', 'pro_annuel',
+      'business_mensuel', 'business_annuel'
+    ],
     required: true
   },
 
@@ -19,7 +24,7 @@ const paiementSchema = new mongoose.Schema({
   // paiement d'abonnement annonces, renseigné pour un paiement Pro d'espace.
   espaceType: {
     type: String,
-    enum: ['vente', 'restauration', 'hotel', 'livraison', null],
+    enum: ['vente', 'restauration', 'hotel', 'livraison', 'agence_livraison', null],
     default: null
   },
   espaceId: {
@@ -73,10 +78,10 @@ const paiementSchema = new mongoose.Schema({
     default: null
   },
 
-  reference: {
-    type: String,
-    unique: true
-  }
+  reference: { type: String, unique: true },
+  referenceFedaPay: { type: String, default: null, index: true },
+  lienPaiement: { type: String, default: null },
+  evenementsTraites: { type: [String], default: [] }
 
 }, {
   timestamps: true

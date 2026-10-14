@@ -3,7 +3,10 @@ const Produit = require('../models/Produit');
 const Boutique = require('../models/Boutique');
 const { creerNotification } = require('../utils/notifier');
 
-// ─── Passer une commande ───
+// ─── ⚠️ DÉPRÉCIÉ — n'est plus monté sur aucune route (voir routes/commandeRoutes.js).
+// Créait la commande sans paiement réel préalable (l'écart que corrige
+// l'intégration FedaPay). Conservé pour référence uniquement ; le parcours
+// actif est POST /api/paiements-commande/initier (paiementCommandeController.js). ───
 // POST /api/commandes
 const createCommande = async (req, res) => {
   try {
@@ -132,7 +135,7 @@ const getCommandesRecues = async (req, res) => {
 const updateStatutCommande = async (req, res) => {
   try {
     const { statut } = req.body;
-    const statutsValides = ['en_attente', 'confirmée', 'expédiée', 'livrée', 'annulée'];
+    const statutsValides = ['en_attente', 'confirmée', 'préparation', 'expédiée', 'en_livraison', 'livrée', 'terminée', 'annulée'];
     if (!statutsValides.includes(statut)) {
       return res.status(400).json({ message: 'Statut invalide.' });
     }
@@ -143,10 +146,27 @@ const updateStatutCommande = async (req, res) => {
       return res.status(403).json({ message: 'Seul le vendeur peut mettre à jour cette commande.' });
     }
 
-    // Si la commande est annulée, on restitue le stock réservé.
-    if (statut === 'annulée' && commande.statut !== 'annulée') {
-      for (const item of commande.articles) {
-        await Produit.findByIdAndUpdate(item.produit, { $inc: { quantiteDisponible: item.quantite } });
+    const transitions = {
+      en_attente: ['confirmée', 'annulée'],
+      confirmée: ['préparation', 'expédiée'],
+      préparation: ['expédiée'],
+      expédiée: commande.livraison ? ['en_livraison'] : ['livrée'],
+      en_livraison: ['livrée'],
+      livrée: ['terminée'],
+      terminée: [],
+      annulée: []
+    };
+    if (!transitions[commande.statut]?.includes(statut)) {
+      return res.status(409).json({ message: `Transition ${commande.statut} → ${statut} interdite.` });
+    }
+    if (statut === 'annulée') {
+      return res.status(409).json({ message: 'Une commande déjà payée ne peut pas être annulée directement. Créez une demande de remboursement afin de conserver la traçabilité financière.' });
+    }
+    if (commande.livraison && ['livrée','terminée'].includes(statut)) {
+      const DemandeLivraison = require('../models/DemandeLivraison');
+      const livraison = await DemandeLivraison.findById(commande.livraison).select('statut livraisonValideeLe');
+      if (!livraison || livraison.statut !== 'livrée' || !livraison.livraisonValideeLe) {
+        return res.status(409).json({ message: 'La commande ne peut être livrée avant la validation de sa remise.' });
       }
     }
 

@@ -106,7 +106,7 @@ const getBoutiques = async (req, res) => {
 
     const [boutiques, total] = await Promise.all([
       Boutique.find(filtre)
-        .sort({ 'abonnementPro.actif': -1, createdAt: -1 })
+        .sort({ 'abonnementPro.priorite': -1, createdAt: -1 })
         .skip((pageNormalisee - 1) * limiteNormalisee)
         .limit(limiteNormalisee),
       Boutique.countDocuments(filtre)

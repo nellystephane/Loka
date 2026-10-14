@@ -8,13 +8,23 @@ const {
   changePassword,
   deleteAccount,
   toggleFavori,
-  getFavoris
+  getFavoris,
+  loginGoogle,
+  verifierEmail,
+  renvoyerVerification,
+  demanderResetMotDePasse,
+  resetMotDePasse
 } = require('../controllers/userController');
 const auth = require('../middleware/auth');
 
 // ─── Routes publiques ───
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', loginGoogle);
+router.get('/verification-email', verifierEmail);
+router.post('/verification-email/renvoyer', renvoyerVerification);
+router.post('/password/forgot', demanderResetMotDePasse);
+router.post('/password/reset', resetMotDePasse);
 
 // ─── Routes protégées ───
 router.get('/profil', auth, getProfil);

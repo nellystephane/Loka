@@ -17,6 +17,17 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'Utilisateur non trouvé.' });
     }
 
+    // ─── Un compte suspendu par l'administration perd tout accès à l'API
+    // authentifiée (chantier back-office). Le token reste valide pour ne
+    // pas casser la session côté client, mais chaque requête est bloquée
+    // ici tant que le compte n'est pas réactivé. ───
+    if (user.statut === 'suspendu') {
+      return res.status(403).json({
+        message: 'Ce compte a été suspendu.',
+        motif: user.suspension?.motif || ''
+      });
+    }
+
     req.user = user;
     next();
   } catch (error) {
