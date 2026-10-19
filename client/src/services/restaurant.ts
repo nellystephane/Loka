@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+import { API_BASE } from './apiConfig';
 const auth = (token: string) => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` });
 async function request<T>(path: string, options: RequestInit = {}, fallback = 'Impossible de communiquer avec Loka.') {
   const r = await fetch(`${API_BASE}${path}`, options); const b = await r.json().catch(() => ({}));

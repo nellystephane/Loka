@@ -35,8 +35,8 @@ const upload = multer({
   storage: stockageActif(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 Mo max
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Seuls les fichiers image sont autorisés.'));
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(file.mimetype)) {
+      return cb(new Error('Format non pris en charge. Utilisez JPG, PNG, WebP, GIF ou AVIF.'));
     }
     cb(null, true);
   }

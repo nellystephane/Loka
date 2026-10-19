@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      VITE_API_URL: https://proxiconnect.onrender.com
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,6 +33,10 @@ jobs:
         run: rm -rf client/node_modules/.vite  
 
       - name: Build frontend
+        env:
+          VITE_API_URL: https://proxiconnect.onrender.com
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_FEDAPAY_PUBLIC_KEY: ${{ secrets.VITE_FEDAPAY_PUBLIC_KEY }}
         run: |
           cd client
           npm run build

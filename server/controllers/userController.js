@@ -58,7 +58,7 @@ const register = async (req, res) => {
       }
     });
 
-    const lienVerification = `${process.env.FRONTEND_URL || ''}/verification-email?token=${verificationToken}`;
+    const lienVerification = `${String(process.env.FRONTEND_URL || '').replace(/\/+$/, '')}/verification-email?token=${verificationToken}`;
     await envoyerEmail({ to: user.email, sujet: 'Confirmez votre adresse email — Loka', html: gabaritEmail('Confirmez votre adresse email', '<p>Votre compte Loka est créé. Confirmez votre adresse email pour terminer l’inscription.</p>', lienVerification) });
 
     res.status(201).json({
@@ -161,13 +161,13 @@ const renvoyerVerification = async (req,res) => {
     const {email}=req.body||{}; const user=await User.findOne({email:String(email||'').toLowerCase().trim()}).select('+emailVerificationTokenHash +emailVerificationExpireLe');
     if(!user || user.emailVerifie) return res.json({message:'Si un compte non confirmé correspond à cet email, un nouveau lien a été envoyé.'});
     const token=genererJetonAleatoire(); user.emailVerificationTokenHash=hacherJeton(token); user.emailVerificationExpireLe=new Date(Date.now()+24*60*60*1000); await user.save();
-    const lien=`${process.env.FRONTEND_URL||''}/verification-email?token=${token}`; await envoyerEmail({to:user.email,sujet:'Nouveau lien de confirmation — Loka',html:gabaritEmail('Confirmez votre adresse email','<p>Voici votre nouveau lien de confirmation.</p>',lien)});
+    const lien=`${String(process.env.FRONTEND_URL||'').replace(/\/+$/, '')}/verification-email?token=${token}`; await envoyerEmail({to:user.email,sujet:'Nouveau lien de confirmation — Loka',html:gabaritEmail('Confirmez votre adresse email','<p>Voici votre nouveau lien de confirmation.</p>',lien)});
     res.json({message:'Si un compte non confirmé correspond à cet email, un nouveau lien a été envoyé.'});
   }catch(e){res.status(500).json({message:'Erreur serveur.'});}
 };
 
 const demanderResetMotDePasse = async (req,res) => {
-  try { const user=await User.findOne({email:String(req.body?.email||'').toLowerCase().trim()}).select('+passwordResetTokenHash +passwordResetExpireLe'); if(user?.motDePasse){const token=genererJetonAleatoire(); user.passwordResetTokenHash=hacherJeton(token); user.passwordResetExpireLe=new Date(Date.now()+30*60*1000); await user.save(); const lien=`${process.env.FRONTEND_URL||''}/reset-password?token=${token}`; await envoyerEmail({to:user.email,sujet:'Réinitialiser votre mot de passe — Loka',html:gabaritEmail('Réinitialisation du mot de passe','<p>Ce lien est valable 30 minutes.</p>',lien)});} return res.json({message:'Si un compte correspond à cet email, un lien de réinitialisation a été envoyé.'}); } catch(e){res.status(500).json({message:'Erreur serveur.'});}
+  try { const user=await User.findOne({email:String(req.body?.email||'').toLowerCase().trim()}).select('+passwordResetTokenHash +passwordResetExpireLe'); if(user?.motDePasse){const token=genererJetonAleatoire(); user.passwordResetTokenHash=hacherJeton(token); user.passwordResetExpireLe=new Date(Date.now()+30*60*1000); await user.save(); const lien=`${String(process.env.FRONTEND_URL||'').replace(/\/+$/, '')}/reset-password?token=${token}`; await envoyerEmail({to:user.email,sujet:'Réinitialiser votre mot de passe — Loka',html:gabaritEmail('Réinitialisation du mot de passe','<p>Ce lien est valable 30 minutes.</p>',lien)});} return res.json({message:'Si un compte correspond à cet email, un lien de réinitialisation a été envoyé.'}); } catch(e){res.status(500).json({message:'Erreur serveur.'});}
 };
 
 const resetMotDePasse = async (req,res) => {

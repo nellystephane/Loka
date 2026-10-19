@@ -17,7 +17,6 @@ const montantRemboursements = async (transactionId) => {
 };
 
 const demander = async (req, res) => {
-  let transactionVerrouillee = null;
   try {
     const { transactionId, montant, motif } = req.body || {};
     const t = await TransactionPaiement.findById(transactionId);
@@ -29,27 +28,10 @@ const demander = async (req, res) => {
       return res.status(409).json({ message: 'Seul un paiement approuvé peut être remboursé.' });
     }
 
-    // Serialize requests for a single transaction to prevent two concurrent
-    // partial refunds from both passing the same remaining-balance check.
-    const staleBefore = new Date(Date.now() - 2 * 60 * 1000);
-    const verrou = await TransactionPaiement.findOneAndUpdate({
-      _id: t._id,
-      statut: 'approuvé',
-      $or: [
-        { remboursementEnCours: { $ne: true } },
-        { remboursementVerrouilleLe: { $lt: staleBefore } },
-      ],
-    }, { $set: { remboursementEnCours: true, remboursementVerrouilleLe: new Date() } }, { new: true });
-    if (!verrou) return res.status(409).json({ message: 'Une autre demande de remboursement est en cours sur ce paiement. Actualisez puis réessayez.' });
-    transactionVerrouillee = verrou._id;
-
     const deja = await montantRemboursements(t._id);
     const m = Number(montant);
     if (!Number.isFinite(m) || m <= 0 || m + deja > t.montant) {
       return res.status(400).json({ message: 'Montant de remboursement invalide.' });
-    }
-    if (!String(motif || '').trim()) {
-      return res.status(400).json({ message: 'Le motif du remboursement est obligatoire.' });
     }
 
     const r = await Remboursement.create({
@@ -62,14 +44,6 @@ const demander = async (req, res) => {
     res.status(201).json(r);
   } catch (e) {
     res.status(400).json({ message: e.message });
-  } finally {
-    if (transactionVerrouillee) {
-      try {
-        await TransactionPaiement.updateOne({ _id: transactionVerrouillee, remboursementEnCours: true }, { $set: { remboursementEnCours: false, remboursementVerrouilleLe: null } });
-      } catch (releaseError) {
-        console.error('Impossible de libérer le verrou de remboursement:', releaseError.message);
-      }
-    }
   }
 };
 
@@ -223,45 +197,4 @@ const traiter = async (req, res) => {
   }
 };
 
-
-const mesRemboursements = async (req, res) => {
-  try {
-    const items = await Remboursement.find({ demandeur: req.user._id })
-      .populate('transactionPaiement', 'contexte montant devise statut createdAt')
-      .sort({ createdAt: -1 }).limit(100).lean();
-    res.json(items);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Impossible de charger vos demandes de remboursement.' });
-  }
-};
-
-const transactionsRemboursables = async (req, res) => {
-  try {
-    const transactions = await TransactionPaiement.find({ initiateur: req.user._id, statut: 'approuvé' })
-      .select('contexte montant devise statut createdAt referenceFedaPay')
-      .sort({ createdAt: -1 }).limit(100).lean();
-    if (!transactions.length) return res.json([]);
-    const ids = transactions.map((transaction) => transaction._id);
-    const totals = await Remboursement.aggregate([
-      { $match: { transactionPaiement: { $in: ids }, statut: { $in: ['demande', 'en_cours', 'réussi'] } } },
-      { $group: { _id: '$transactionPaiement', total: { $sum: '$montant' } } },
-    ]);
-    const refunded = new Map(totals.map((entry) => [String(entry._id), Number(entry.total || 0)]));
-    res.json(transactions.map((transaction) => ({
-      _id: transaction._id,
-      contexte: transaction.contexte,
-      montant: transaction.montant,
-      devise: transaction.devise,
-      statut: transaction.statut,
-      createdAt: transaction.createdAt,
-      montantDejaDemande: refunded.get(String(transaction._id)) || 0,
-      montantRemboursable: Math.max(0, Number(transaction.montant || 0) - (refunded.get(String(transaction._id)) || 0)),
-    })).filter((transaction) => transaction.montantRemboursable > 0));
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Impossible de charger les paiements éligibles.' });
-  }
-};
-
-module.exports = { demander, traiter, mesRemboursements, transactionsRemboursables, finaliserRemboursementMetier };
+module.exports = { demander, traiter, finaliserRemboursementMetier };

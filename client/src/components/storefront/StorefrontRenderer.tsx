@@ -1,9 +1,19 @@
+import { appPath } from '../../utils/navigation';
 import { useState } from 'react';
-import { withAppBasePath } from '../../utils/appBasePath';
 import { ArrowRight, Clock3, MapPin, MessageCircle, Star } from 'lucide-react';
 import { Button } from '../primitives';
 import { MediaCarousel } from '../media/MediaCarousel';
+import { BoutiqueEditorialTemplate } from './BoutiqueEditorialTemplate';
+import { BoutiqueNeoFluxTemplate } from './BoutiqueNeoFluxTemplate';
+import { BoutiqueOrbitGlassTemplate } from './BoutiqueOrbitGlassTemplate';
+import { BoutiqueFloatFormTemplate } from './BoutiqueFloatFormTemplate';
+import { BoutiquePopObjectTemplate } from './BoutiquePopObjectTemplate';
+import { BoutiqueSpectrumIndexTemplate } from './BoutiqueSpectrumIndexTemplate';
+import { BoutiquePrismVaultTemplate } from './BoutiquePrismVaultTemplate';
+import { BoutiqueKineticAtelierTemplate } from './BoutiqueKineticAtelierTemplate';
 import { StorefrontProductQuickView, type StorefrontProduct } from './StorefrontProductQuickView';
+import { RestaurantTempoTemplate } from './RestaurantTempoTemplate';
+import { RestaurantEditorialDiningTemplate } from './RestaurantEditorialDiningTemplate';
 import { createConversation } from '../../services/messages';
 import { ShareButton } from '../share/ShareButton';
 
@@ -57,6 +67,7 @@ export function StorefrontRenderer({
   preview = false,
   accent = '#7C6A55',
   data,
+  adaptiveOnly = false,
 }: {
   type: StorefrontType;
   templateId?: string;
@@ -65,7 +76,6 @@ export function StorefrontRenderer({
   data?: any;
   adaptiveOnly?: boolean;
 }) {
-  const [selectedProduct, setSelectedProduct] = useState<StorefrontProduct | null>(null);
   const source = data?.espace || data || null;
   const rawProducts = source?.produits || source?.plats || source?.hebergements || [];
   if (!source) return <div className="commerce-empty storefront-no-data"><span className="section-eyebrow">Vitrine</span><h3>Données professionnelles indisponibles</h3><p>La vitrine doit être ouverte depuis un espace professionnel réel.</p></div>;
@@ -78,19 +88,60 @@ export function StorefrontRenderer({
     media: (source.photos || [source.photoHero, source.banniere, source.logo].filter(Boolean)).map((src:string,i:number)=>({src,alt:`${source.nom || 'Espace'} — photo ${i+1}`})),
     products: rawProducts
   };
-  const hoursLabel = typeof source.horaires === 'string' ? source.horaires : typeof source.heuresOuverture === 'string' ? source.heuresOuverture : 'Horaires à consulter';
+  const [selectedProduct, setSelectedProduct] = useState<StorefrontProduct | null>(null);
   const template = getStorefrontTemplates(type).find((entry) => entry.id === templateId) ?? getStorefrontTemplates(type)[0];
   const label = type === 'boutique' ? 'Boutique' : type === 'restaurant' ? 'Restaurant' : 'Hôtel';
   const isEditorial = template.layout === 'editorial';
+  const isPremium = template.layout === 'premium' || template.layout === 'experience';
   const contactOwner = async () => {
     const token = localStorage.getItem('token'); const owner = source?.proprietaire?._id || source?.proprietaire;
-    if (!token || !owner) { if (!token) window.location.href=withAppBasePath(`/connexion?next=${encodeURIComponent('/messages')}`); return; }
-    try { const c = await createConversation(String(owner), { type, id: String(source?._id || ''), titre: source?.nom || '' }, token); window.location.href=withAppBasePath(`/messages?conversationId=${c._id}`); } catch { window.location.href=withAppBasePath(`/messages?destinataireId=${encodeURIComponent(String(owner))}&contextType=${type}&contextId=${encodeURIComponent(String(source?._id || ''))}&contextTitle=${encodeURIComponent(source?.nom || '')}`); }
+    if (!token || !owner) { if (!token) window.location.href=appPath('/messages'); return; }
+    try { const c = await createConversation(String(owner), { type, id: String(source?._id || ''), titre: source?.nom || '' }, token); window.location.href=appPath(`/messages?conversationId=${c._id}`); } catch { window.location.href=appPath(`/messages?destinataireId=${encodeURIComponent(String(owner))}&contextType=${type}&contextId=${encodeURIComponent(String(source?._id || ''))}&contextTitle=${encodeURIComponent(source?.nom || '')}`); }
   };
 
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_editorial') {
+    return <BoutiqueEditorialTemplate preview={preview} accent={accent} />;
+  }
+
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_neo_flux') {
+    return <BoutiqueNeoFluxTemplate preview={preview} accent={accent || '#B8FF2C'} />;
+  }
+
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_orbit_glass') {
+    return <BoutiqueOrbitGlassTemplate preview={preview} accent={accent || '#C7FF3D'} />;
+  }
+
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_float_form') {
+    return <BoutiqueFloatFormTemplate preview={preview} accent={accent || '#6D5DF6'} />;
+  }
+
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_pop_object') {
+    return <BoutiquePopObjectTemplate preview={preview} accent={accent || '#D7FF4F'} />;
+  }
+
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_spectrum_index') {
+    return <BoutiqueSpectrumIndexTemplate preview={preview} accent={accent || '#00E5FF'} />;
+  }
+
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_prism_vault') {
+    return <BoutiquePrismVaultTemplate preview={preview} accent={accent || '#D9A8FF'} />;
+  }
+
+  if (!adaptiveOnly && type === 'boutique' && templateId === 'boutique_kinetic_atelier') {
+    return <BoutiqueKineticAtelierTemplate preview={preview} accent={accent || '#FF3B30'} />;
+  }
+
+  if (!adaptiveOnly && type === 'restaurant' && templateId === 'restaurant_tempo') {
+    return <RestaurantTempoTemplate preview={preview} accent={accent || '#8FF2C7'} />;
+  }
+
+  if (!adaptiveOnly && type === 'restaurant' && templateId === 'restaurant_editorial_dining') {
+    return <RestaurantEditorialDiningTemplate preview={preview} accent={accent || '#FF4D2E'} />;
+  }
+
   return (
-    <div className={`storefront-renderer storefront-template-${template.layout} storefront-id-${template.id}`} data-template={template.id}>
-      <section className="storefront-hero" id="top">
+    <div className={`storefront-renderer storefront-template-${template.layout}`} data-template={template.id}>
+      <section className="storefront-hero">
         <MediaCarousel items={item.media} aspectRatio="wide" viewerTitle={item.title} viewerDescription={item.description} viewerMeta={item.location} />
         <div className="storefront-hero-overlay">
           <span className="storefront-badge">{label}</span>
@@ -101,33 +152,32 @@ export function StorefrontRenderer({
 
       <div className="storefront-head">
         <div>
-          <div className="storefront-meta"><MapPin size={15} />{item.location}<span>•</span><span className={source.estOuvert === true ? 'status-open' : source.estOuvert === false ? 'status-closed' : 'status-unknown'}>{source.estOuvert === true ? 'Ouvert' : source.estOuvert === false ? 'Fermé' : 'Horaires à consulter'}</span></div>
-          <div className="storefront-rating"><Star size={16} fill="currentColor" /> {item.reviews > 0 ? <>{item.rating} <span>({item.reviews} avis)</span></> : <span>Aucun avis pour le moment</span>}</div>
+          <div className="storefront-meta"><MapPin size={15} />{item.location}<span>•</span><span className="status-open">Ouvert</span></div>
+          <div className="storefront-rating"><Star size={16} fill="currentColor" /> {item.rating} <span>({item.reviews} avis)</span></div>
         </div>
-        {!preview && <div className="storefront-actions"><ShareButton title={item.title} text={item.description} cibleType={type === 'restaurant' ? 'restaurant' : type === 'hotel' ? 'hotel' : 'boutique'} cibleId={source?._id ? String(source._id) : undefined} /><Button onClick={contactOwner}><MessageCircle size={17} /> Contacter</Button>{type==='restaurant' && <Button onClick={()=>window.location.href=withAppBasePath(`/restaurant/${source?._id}/reserver`)}>Réserver</Button>}{type==='hotel' && <Button onClick={()=>window.location.href=withAppBasePath(`/hotel/${source?._id}/reserver`)}>Réserver un séjour</Button>}</div>}
+        {!preview && <div className="storefront-actions"><ShareButton title={item.title} text={item.description} /><Button onClick={contactOwner}><MessageCircle size={17} /> Contacter</Button>{type==='restaurant' && <Button onClick={()=>window.location.href=appPath(`/restaurant/${source?._id}/reserver`)}>Réserver</Button>}{type==='hotel' && <Button onClick={()=>window.location.href=appPath(`/hotel/${source?._id}/reserver`)}>Réserver un séjour</Button>}</div>}
       </div>
 
-      <nav className="storefront-tabs"><a className="active" href="#top">Accueil</a><a href="#catalogue">{type === 'restaurant' ? 'Menu' : type === 'hotel' ? 'Chambres' : 'Catalogue'}</a><a href="#apropos">À propos</a></nav>
+      <nav className="storefront-tabs"><a className="active">Accueil</a><a>{type === 'restaurant' ? 'Menu' : type === 'hotel' ? 'Chambres' : 'Catalogue'}</a><a>Avis</a><a>À propos</a></nav>
 
       <section className="storefront-content">
         <div className="storefront-main">
-          <div className="storefront-intro" id="apropos">
+          <div className="storefront-intro">
             <span className="section-eyebrow">{isEditorial ? 'Notre univers' : 'Bienvenue'}</span>
             <h3>{item.subtitle}</h3>
             <p>{item.description}</p>
           </div>
 
-          <div className="storefront-collection" id="catalogue">
+          <div className="storefront-collection">
             <div className="collection-head">
               <div><span className="section-eyebrow">À découvrir</span><h3>{type === 'restaurant' ? 'Le menu' : type === 'hotel' ? 'Les chambres' : 'Les produits populaires'}</h3></div>
-              <a className="text-action" href="#catalogue">Voir tout <ArrowRight size={16} /></a>
+              <button className="text-action">Voir tout <ArrowRight size={16} /></button>
             </div>
-            {item.products.length === 0 ? <div className="storefront-catalog-empty"><span className="storefront-empty-icon">{type === 'restaurant' ? '🍽️' : type === 'hotel' ? '🛏️' : '▦'}</span><strong>{type === 'restaurant' ? 'La carte se prépare' : type === 'hotel' ? 'Les hébergements arrivent bientôt' : 'Le catalogue se prépare'}</strong><p>{preview ? 'Ajoutez vos premiers contenus pour compléter cette section.' : 'Aucun contenu public n’est disponible dans cette section pour le moment.'}</p></div> : <div className="collection-grid">
-              {item.products.map((m: any, i: number) => {
+            <div className="collection-grid">
+              {(item.products?.length ? item.products : item.media).map((m: any, i: number) => {
                 const image = m.photos?.[0] || m.image || m.src || item.media?.[i]?.src || '';
                 const name = m.nom || m.name || (type === 'restaurant' ? `Suggestion ${i + 1}` : type === 'hotel' ? `Hébergement ${i + 1}` : `Sélection ${i + 1}`);
                 const priceValue = m.prix ?? m.prixParNuit ?? m.price;
-                const available = type === 'boutique' ? m.statut !== 'rupture' && Number(m.quantiteDisponible || 0) > 0 : type === 'restaurant' ? m.disponible !== false : true;
                 const product: StorefrontProduct = {
                   id: String(m._id || m.id || `${type.toUpperCase()}-${String(i + 1).padStart(2, '0')}`),
                   name,
@@ -144,24 +194,23 @@ export function StorefrontRenderer({
                   restaurantId: type === 'restaurant' ? String(source?._id || '') : undefined,
                   seller: source?.nom || '',
                   unitPrice: typeof priceValue === 'number' ? priceValue : 0,
-                  available,
                 };
                 return (
-                  <article className="storefront-product" key={m._id || m.id || `${type}-${i}`} role="button" tabIndex={0} aria-label={`Consulter ${product.name}`} onClick={() => setSelectedProduct(product)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedProduct(product); } }}>
+                  <article className="storefront-product" key={m._id || m.id || `${type}-${i}`} role="button" tabIndex={0} onClick={() => setSelectedProduct(product)} onKeyDown={(event) => event.key === 'Enter' && setSelectedProduct(product)}>
                     {image ? <img src={image} alt={product.alt} /> : <div className="storefront-product-placeholder">{product.name}</div>}
-                    <div><strong>{product.name}</strong><span>{type === 'hotel' ? 'Réservation disponible' : available ? 'Disponible' : 'Indisponible'}</span></div>
+                    <div><strong>{product.name}</strong><span>{isPremium ? 'Expérience disponible' : 'Disponible'}</span></div>
                   </article>
                 );
               })}
-            </div>}
+            </div>
           </div>
         </div>
         <aside className="storefront-aside">
           <div className="aside-card">
             <strong>Informations</strong>
-            <div><Clock3 size={16} /> {hoursLabel}</div>
+            <div><Clock3 size={16} /> {source.horaires || source.heuresOuverture || 'Horaires à consulter'}</div>
             <div><MapPin size={16} /> {item.location}</div>
-            {!preview && <a className="button button-secondary" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`} target="_blank" rel="noreferrer">Voir l’itinéraire</a>}
+            {!preview && <Button variant="secondary">Voir l’itinéraire</Button>}
           </div>
         </aside>
       </section>

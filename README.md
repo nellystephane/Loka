@@ -20,7 +20,6 @@ loka-main/
 
 - Le workflow `.github/workflows/deploy.yml` déploie uniquement `client/` vers GitHub Pages.
 - Le backend `server/` reste déployé par Render depuis le dépôt GitHub.
-- Vérifier le commit actif du backend via `https://proxiconnect.onrender.com/api/version` ; la réponse contient le SHA fourni par Render.
 - Aucun nouveau workflow backend n'est ajouté.
 - Le workflow GitHub Pages est conservé tel qu'il existait.
 
@@ -40,7 +39,3 @@ Cette version conserve la structure réelle du dépôt (`client/`, `server/`, `.
 ### V18 — première direction artistique réelle
 
 Ajout du template `boutique_editorial` : une vitrine Boutique éditoriale/lifestyle avec composition asymétrique, typographie serif, photographie dominante, rythme magazine, sections narratives, responsive mobile-first et accent configurable. Le template est rendu par le même moteur que le Builder et reste distinct des autres structures.
-
-## Passe suivante
-
-Voir `docs/LOKA_REFONTE_PAGES_EXISTANTES_V3.md` pour les corrections de l’historique client et le contexte de navigation professionnel.

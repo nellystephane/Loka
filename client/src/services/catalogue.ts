@@ -16,7 +16,7 @@ export type ProduitPayload = {
   livraisonPossible?: boolean;
 };
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+import { API_BASE } from './apiConfig';
 const authHeaders = (token: string) => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` });
 
 async function request(path: string, options: RequestInit, fallbackMessage: string) {

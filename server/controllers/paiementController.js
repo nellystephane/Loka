@@ -113,7 +113,7 @@ const getOffresPro = async (req, res) => {
 // POST /api/paiements/pro
 const createPaiementPro = async (req, res) => {
   try {
-    const { type, espaceType, espaceId, methode, operateur, numeroTransaction } = req.body;
+    const { type, espaceType, methode, operateur, numeroTransaction } = req.body;
 
     if (!type || !espaceType || !methode) {
       return res.status(400).json({ message: 'Type d\'abonnement, espace et méthode de paiement sont obligatoires.' });
@@ -130,11 +130,7 @@ const createPaiementPro = async (req, res) => {
 
     // Le champ propriétaire varie selon l'espace (proprietaire pour Boutique/Restaurant/Hotel, utilisateur pour Livreur)
     const champProprietaire = ['livraison', 'livraison_individuel'].includes(espaceType) ? 'utilisateur' : 'proprietaire';
-    const filtreProprietaire = { [champProprietaire]: req.user._id };
-    // Si le frontend a choisi un espace précis, vérifier sa propriété au lieu de prendre arbitrairement le premier espace du type.
-    const espace = espaceId
-      ? await Modele.findOne({ _id: espaceId, ...filtreProprietaire })
-      : await Modele.findOne(filtreProprietaire);
+    const espace = await Modele.findOne({ [champProprietaire]: req.user._id });
     if (!espace) {
       return res.status(404).json({ message: "Vous n'avez pas encore activé cet espace." });
     }

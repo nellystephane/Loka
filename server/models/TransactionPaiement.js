@@ -59,10 +59,6 @@ const transactionPaiementSchema = new mongoose.Schema({
 
   expireA: { type: Date, default: null },
 
-  // Verrou court pour sérialiser les demandes de remboursement concurrentes.
-  remboursementEnCours: { type: Boolean, default: false },
-  remboursementVerrouilleLe: { type: Date, default: null },
-
   // Verrou métier distinct du statut financier. Il empêche deux webhooks
   // simultanés de matérialiser deux fois une même commande. Un verrou ancien
   // peut être repris après expiration afin de ne pas bloquer une transaction

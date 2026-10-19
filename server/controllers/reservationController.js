@@ -222,41 +222,6 @@ const updateStatutReservation = async (req, res) => {
   }
 };
 
-
-// POST /api/reservations/:id/annuler — annulation initiée par le client.
-// Les réservations payées ou dont le paiement est encore en cours nécessitent
-// une décision de remboursement/réconciliation et ne sont jamais annulées ici.
-const annulerReservationClient = async (req, res) => {
-  try {
-    const reservation = await Reservation.findOne({ _id: req.params.id, client: req.user._id });
-    if (!reservation) return res.status(404).json({ message: 'Réservation introuvable dans votre compte.' });
-    if (!['en_attente_paiement', 'confirmee'].includes(reservation.statut)) {
-      return res.status(409).json({ message: 'Cette réservation ne peut plus être annulée depuis votre espace client.' });
-    }
-    if (new Date(reservation.dateArrivee) <= new Date()) {
-      return res.status(409).json({ message: 'Une réservation ne peut être annulée en ligne qu’avant la date d’arrivée.' });
-    }
-    const transaction = reservation.transactionPaiement ? await TransactionPaiement.findById(reservation.transactionPaiement).select('statut') : null;
-    const transactionSurementNonPayee = !transaction || ['échoué', 'expiré'].includes(transaction.statut);
-    if (!transactionSurementNonPayee || !['non_requis', 'échoué'].includes(reservation.paiementStatut)) {
-      return res.status(409).json({ message: reservation.paiementStatut === 'approuve' || transaction?.statut === 'approuvé'
-        ? 'Le paiement est confirmé. Contactez le support pour faire examiner une annulation et un éventuel remboursement.'
-        : 'Un paiement est en cours ou son état est incertain. Réessayez après vérification du paiement.' });
-    }
-    const annulee = await Reservation.findOneAndUpdate(
-      { _id: reservation._id, client: req.user._id, statut: reservation.statut, paiementStatut: reservation.paiementStatut },
-      { $set: { statut: 'annulee', expirePaiementA: null } },
-      { new: true, runValidators: true }
-    );
-    if (!annulee) return res.status(409).json({ message: 'La réservation a changé entre-temps. Actualisez la page avant de réessayer.' });
-    await creerNotification(req.app.get('io'), annulee.hotelier, 'reservation_annulee_client', 'Réservation annulée', 'Un client a annulé une réservation avant son arrivée.', '/hotel');
-    return res.json({ message: 'Réservation annulée.', reservation: annulee });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Impossible d’annuler cette réservation pour le moment.' });
-  }
-};
-
 // GET /api/reservations/chambre/:chambreId
 const getReservationsChambre = async (req, res) => {
   try {
@@ -383,7 +348,6 @@ module.exports = {
   getMesReservations,
   getReservationsRecues,
   updateStatutReservation,
-  annulerReservationClient,
   getReservationsChambre,
   getDisponibiliteChambre,
   initierPaiementReservation,

@@ -61,26 +61,5 @@ const creerReservation = async(req,res)=>{
 
 const mesReservations=async(req,res)=>res.json(await Reservation.find({client:req.user._id}).populate('restaurant','nom').populate('categorie','nom').populate('table','reference').sort({date:-1,createdAt:-1}));
 const reservationsRecues=async(req,res)=>{const r=await Restaurant.findOne({proprietaire:req.user._id});if(!r)return res.status(404).json({message:'Restaurant introuvable.'});res.json(await Reservation.find({restaurant:r._id}).populate('client','nom prenom telephone').populate('categorie','nom').populate('table','reference').sort({date:1,heure:1}));};
-
-const annulerReservationClient=async(req,res)=>{
-  try{
-    const reservation=await Reservation.findOne({_id:req.params.id,client:req.user._id});
-    if(!reservation)return res.status(404).json({message:'Réservation introuvable dans votre compte.'});
-    if(!['en_attente_paiement','confirmee'].includes(reservation.statut))return res.status(409).json({message:'Cette réservation ne peut plus être annulée depuis votre espace client.'});
-    const dateReservation=new Date(reservation.date); const [hh,mm]=String(reservation.heure||'00:00').split(':').map(Number);
-    dateReservation.setHours(Number.isFinite(hh)?hh:0,Number.isFinite(mm)?mm:0,0,0);
-    if(dateReservation<=new Date())return res.status(409).json({message:'Une réservation ne peut être annulée en ligne qu’avant l’heure prévue.'});
-    const transaction=reservation.transactionPaiement?await TransactionPaiement.findById(reservation.transactionPaiement).select('statut'):null;
-    const transactionSurementNonPayee=!transaction||['échoué','expiré'].includes(transaction.statut);
-    if(!transactionSurementNonPayee||!['non_requis','echoue'].includes(reservation.paiementStatut))return res.status(409).json({message:reservation.paiementStatut==='approuve'||transaction?.statut==='approuvé'?'Le paiement est confirmé. Contactez le support pour faire examiner une annulation et un éventuel remboursement.':'Un paiement est en cours ou son état est incertain. Réessayez après vérification du paiement.'});
-    const updated=await Reservation.findOneAndUpdate({_id:reservation._id,client:req.user._id,statut:reservation.statut,paiementStatut:reservation.paiementStatut},{$set:{statut:'annulee',expirePaiementA:null}},{new:true,runValidators:true});
-    if(!updated)return res.status(409).json({message:'La réservation a changé entre-temps. Actualisez la page avant de réessayer.'});
-    if(updated.table)await Table.findByIdAndUpdate(updated.table,{statut:'disponible'});
-    const restaurant=await Restaurant.findById(updated.restaurant).select('proprietaire');
-    if(restaurant)await require('../utils/notifier').creerNotification(req.app.get('io'),restaurant.proprietaire,'reservation_annulee_client','Réservation annulée','Un client a annulé une réservation avant l’heure prévue.','/pro/reservations?espaceType=restauration');
-    return res.json({message:'Réservation annulée.',reservation:updated});
-  }catch(e){console.error(e);return res.status(500).json({message:'Impossible d’annuler cette réservation pour le moment.'});}
-};
-
 const statutReservation=async(req,res)=>{try{const r=await Reservation.findById(req.params.id);if(!r)return res.status(404).json({message:'Réservation introuvable.'});const restaurant=await Restaurant.findOne({_id:r.restaurant,proprietaire:req.user._id});if(!restaurant)return res.status(403).json({message:'Accès refusé.'});const allowed=['confirmee','arrivee','occupee','terminee','annulee'];if(!allowed.includes(req.body.statut))return res.status(400).json({message:'Statut invalide.'});r.statut=req.body.statut;await r.save();if(req.body.statut==='terminee'||req.body.statut==='annulee'){await Table.findByIdAndUpdate(r.table,{statut:'liberee'});}res.json(r);}catch(e){res.status(400).json({message:e.message});}};
-module.exports={creerCategorie,modifierCategorie,listerCategories,tables,creerReservation,mesReservations,reservationsRecues,statutReservation,annulerReservationClient};
+module.exports={creerCategorie,modifierCategorie,listerCategories,tables,creerReservation,mesReservations,reservationsRecues,statutReservation};

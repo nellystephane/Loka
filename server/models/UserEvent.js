@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 
 const TYPES = [
   'search', 'view', 'favorite', 'share', 'contact', 'cart', 'purchase',
-  'reservation', 'delivery_request', 'completed', 'click', 'filter', 'template_preview',
-  'category_impression', 'category_click', 'category_ignored'
+  'reservation', 'delivery_request', 'completed', 'click', 'filter', 'template_preview'
 ];
 
 const schema = new mongoose.Schema({

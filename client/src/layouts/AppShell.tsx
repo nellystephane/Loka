@@ -1,103 +1,59 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
-import { Bell, CalendarDays, ChevronLeft, ClipboardList, CreditCard, Home, MessageCircle, Moon, Package, Search, Settings, Sun, Truck, UserRound, Store, Compass, Heart, ShoppingBag, ShieldCheck, Users, AlertTriangle } from 'lucide-react';
-import { Button } from '../components/primitives/Button';
-import { trackEvent } from '../services/analytics';
-import { appBasePath, getAppPath, withAppBasePath } from '../utils/appBasePath';
+import { useEffect, useState, type ReactNode } from 'react';
+import { appPath } from '../utils/navigation';
+import { Bell, CalendarDays, ChevronLeft, ClipboardList, CreditCard, Home, MessageCircle, Moon, MoreHorizontal, Package, Search, Settings, Sun, Truck, UserRound, Store, UserPlus } from 'lucide-react';
 
 const clientNav = [
-  ['/','Accueil',Home], ['/recherche','Recherche',Search], ['/messages','Messages',MessageCircle], ['/activites','Activités',CalendarDays], ['/favoris','Favoris',Heart], ['/notifications','Notifications',Bell], ['/litiges','Support & litiges',AlertTriangle], ['/remboursements','Remboursements',CreditCard], ['/mes-annonces','Mes annonces',Package], ['/profil','Profil',UserRound]
+  ['/','Accueil',Home], ['/recherche','Explorer',Search], ['/messages','Messages',MessageCircle], ['/notifications','Notifications',Bell], ['/profil','Profil',UserRound]
 ] as const;
 const professionalNav = [
-  ['/pro','Vue d’ensemble',Home], ['/pro/catalogue','Catalogue / menu / chambres',Package], ['/pro/commandes','Commandes',ClipboardList], ['/pro/reservations','Réservations',CalendarDays], ['/pro/clients','Clients / contacts',UserRound], ['/pro/livraisons','Livraisons',Truck], ['/pro/livraisons/groupees','Livraison groupée',Truck], ['/pro/messages','Messages',MessageCircle], ['/pro/finances','Finances',CreditCard], ['/pro/abonnement','Abonnement',CalendarDays], ['/pro/vitrine','Vitrine',Store], ['/pro/parametres','Paramètres',Settings]
+  ['/pro','Vue d’ensemble',Home], ['/pro/catalogue','Catalogue / menu / chambres',Package], ['/pro/commandes','Commandes',ClipboardList], ['/pro/livraisons','Livraisons',Truck], ['/pro/messages','Messages',MessageCircle], ['/pro/finances','Finances',CreditCard], ['/pro/abonnement','Abonnement',CalendarDays], ['/pro/vitrine','Vitrine',Store], ['/pro/parametres','Paramètres',Settings]
 ] as const;
-const adminNav = [['/admin','Supervision',ShieldCheck], ['/admin/utilisateurs','Utilisateurs',Users], ['/admin/litiges','Litiges',AlertTriangle], ['/admin/payouts','Versements',CreditCard]] as const;
-const discoveryNav = [ ['/categories','Catégories',Compass], ['/boutiques','Boutiques',Store], ['/restaurants','Restaurants',Compass], ['/hotels','Hôtels',CalendarDays], ['/livreurs','Livreurs & agences',Truck], ['/annonces/nouvelle','Publier une annonce',ShoppingBag] ] as const;
-const publicTitles: Record<string,string> = {
-  '/':'Découvrir', '/categories':'Catégories', '/mes-annonces':'Mes annonces', '/recherche':'Recherche', '/boutiques':'Boutiques', '/restaurants':'Restaurants', '/hotels':'Hôtels', '/livreurs':'Livraison', '/messages':'Messages', '/panier':'Panier', '/checkout':'Paiement', '/livraison':'Livraison', '/pro':'Espace professionnel', '/profil':'Mon profil', '/activites':'Mes activités', '/favoris':'Mes favoris', '/notifications':'Notifications', '/litiges':'Support & litiges', '/remboursements':'Remboursements'
-};
-
-function prefixInternalLinks(event: MouseEvent<HTMLDivElement>) {
-  if (!appBasePath || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  const link = target.closest<HTMLAnchorElement>('a[href]');
-  if (!link || (link.target && link.target !== '_self') || link.hasAttribute('download')) return;
-  const href = link.getAttribute('href');
-  if (!href || !href.startsWith('/') || href.startsWith('//')) return;
-  link.setAttribute('href', withAppBasePath(href));
+const authPaths = ['/connexion','/inscription','/mot-de-passe-oublie','/reset-password','/verification-email','/renvoyer-confirmation'];
+function isPublicPath(path: string) {
+  if (authPaths.some(p => path === p || path.startsWith(`${p}/`))) return true;
+  // Seuls les espaces explicitement privés utilisent le shell connecté.
+  // Une nouvelle route publique/catégorie ne doit jamais hériter par défaut
+  // du menu client/professionnel simplement parce qu'elle n'est pas listée.
+  const privatePrefixes = ['/pro', '/profil', '/panier', '/checkout', '/commande', '/messages', '/notifications', '/favoris', '/client', '/reservations'];
+  if (privatePrefixes.some(p => path === p || path.startsWith(`${p}/`))) return false;
+  if (path.startsWith('/livraison/') && !path.startsWith('/livraison/options')) return false;
+  return true;
 }
-
+function PublicHeader() {
+  return <header className="public-header"><a className="public-brand" href={appPath("/")}><span className="brand-mark">L</span><strong>Loka</strong></a><nav aria-label="Navigation publique"><a href={appPath("/recherche")}>Explorer</a><a href={appPath("/connexion")}>Connexion</a><a className="public-header-cta" href={appPath("/inscription")}><UserPlus size={15}/> Commencer avec Loka</a></nav></header>;
+}
 export function AppShell({ children }: { children?: ReactNode }) {
-  const path = getAppPath(window.location.pathname);
+  const path = window.location.pathname.replace(/^\/Loka(?=\/|$)/, '') || '/';
   const isPro = path.startsWith('/pro');
-  const isAdmin = path.startsWith('/admin');
-  const isAuthPage = ['/connexion','/inscription','/mot-de-passe-oublie','/reset-password','/verification-email','/verification-email/renvoyer'].includes(path);
-  const signedIn = Boolean(localStorage.getItem('token'));
-  const nav = isAdmin ? adminNav : isPro ? professionalNav : clientNav;
-  const [dark, setDark] = useState(() => document.documentElement.dataset.theme === 'dark');
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const query = new URLSearchParams(window.location.search);
-  const catalogueContext = query.get('espaceType');
-  const active = (href: string) => href === '/' ? path === '/' || path === '/app' : (href === '/pro' || href === '/admin') ? path === href : href === '/pro/livraisons' && path === '/pro/livraisons/groupees' ? false : path === href || path.startsWith(`${href}/`);
-  const professionalTitle = path === '/pro/catalogue' && catalogueContext === 'restauration'
-    ? 'Menu du restaurant'
-    : path === '/pro/catalogue' && catalogueContext === 'hotel'
-      ? 'Chambres et hébergements'
-      : path === '/pro/livraisons/groupees' ? 'Livraison groupée' : professionalNav.find(([href]) => path === href)?.[1] || 'Espace professionnel';
-  const title = isAdmin ? (adminNav.find(([href])=>path===href)?.[1]||'Administration') : isPro
-    ? professionalTitle
-    : (publicTitles[path] || (path === '/app' ? 'Découvrir' : path.startsWith('/restaurant/') && path.endsWith('/reserver') ? 'Réserver une table' : path.startsWith('/hotel/') && path.endsWith('/reserver') ? 'Réserver un hébergement' : path.startsWith('/produit/') ? 'Produit' : path.startsWith('/plat/') ? 'Plat du restaurant' : path.startsWith('/annonce/') ? 'Annonce' : path.startsWith('/boutique/') ? 'Boutique' : path.startsWith('/restaurant/') ? 'Restaurant' : path.startsWith('/hotel/') ? 'Hôtel' : path.startsWith('/vitrine/') ? 'Vitrine' : path.startsWith('/livreur/') ? 'Profil livreur' : path.startsWith('/commande/') ? 'Commande' : path.startsWith('/reservation/') ? 'Détail de réservation' : path.startsWith('/livraison/') ? 'Suivi de livraison' : path === '/annonces/nouvelle' ? 'Publier une annonce' : 'Découvrir'));
-  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; }, [dark]);
+  const [theme, setTheme] = useState<'light'|'dark'>(() => (localStorage.getItem('loka-theme') === 'dark' ? 'dark' : 'light'));
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('loka-theme', theme); }, [theme]);
   useEffect(() => {
-    const key = `loka_view:${path}`;
-    let repeated = false;
-    try { repeated = Boolean(window.sessionStorage.getItem(key)); window.sessionStorage.setItem(key, '1'); } catch { /* storage can be disabled */ }
-    trackEvent('view', 'page', undefined, { path, title, repeated });
-  }, [path, title]);
-  const toggleTheme = () => setDark(value => !value);
-  const share = async () => {
-    try {
-      if (navigator.share) { await navigator.share({ title: 'Loka', url: location.href }); trackEvent('share', 'page', undefined, { channel: 'native', path }); }
-      else if (navigator.clipboard) { await navigator.clipboard.writeText(location.href); trackEvent('share', 'page', undefined, { channel: 'copy', path }); }
-    } catch { /* Cancellation is not an error state. */ }
-  };
-  return <div className={`app-shell ${isPro ? 'app-shell-pro' : ''} ${isAdmin ? 'app-shell-admin' : ''}`} onClickCapture={prefixInternalLinks}>
-    <aside className="sidebar" aria-label={isAdmin ? 'Navigation administration' : isPro ? 'Navigation professionnelle' : 'Navigation principale'}>
-      <a className="brand" href={isAdmin ? '/admin' : isPro ? '/pro' : '/'} aria-label="Loka"><span className="brand-mark">L</span><span>Loka</span></a>
-      <nav className="side-nav">
-        <p className="sidebar-section-label">{isAdmin ? 'Pilotage' : isPro ? 'Mon activité' : 'Mon espace'}</p>
-        {nav.map(([href,label,Icon]) => <a key={href} className={`nav-item ${active(href) ? 'active' : ''}`} href={href} aria-current={active(href) ? 'page' : undefined} title={label}><Icon size={18}/><span>{label}</span></a>)}
-      </nav>
-      {!isPro && !isAdmin && <nav className="side-nav sidebar-discovery" aria-label="Explorer les activités"><p className="sidebar-section-label">Explorer</p>{discoveryNav.map(([href,label,Icon]) => <a key={href} className={`nav-item ${active(href) ? 'active' : ''}`} href={href} aria-current={active(href) ? 'page' : undefined}><Icon size={18}/><span>{label}</span></a>)}</nav>}
-      {(isPro||isAdmin) && <a className="side-back-link" href="/" title="Retour à Loka"><ChevronLeft size={15}/> Espace client</a>}
+    if (!isPro || localStorage.getItem('token')) return;
+    const requested = path + window.location.search;
+    window.location.replace(appPath('/connexion') + '?returnTo=' + encodeURIComponent(requested));
+  }, [isPro, path]);
+  if (authPaths.some(p => path === p || path.startsWith(`${p}/`))) return <>{children}</>;
+  if (isPublicPath(path)) return <div className="public-layout"><PublicHeader/>{children}<footer className="public-footer"><span>© Loka</span><a href={appPath("/inscription")}>Vous êtes professionnel ? Commencez avec Loka <UserPlus size={14}/></a></footer></div>;
+  const nav = isPro ? professionalNav : clientNav;
+  const active = (href: string) => href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`);
+  const title = isPro ? (nav.find(([href]) => active(href))?.[1] || 'Espace professionnel') : (nav.find(([href]) => active(href))?.[1] || 'Mon espace');
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
+  return <div className={`app-shell ${isPro ? 'app-shell-pro' : 'app-shell-client'}`}>
+    <aside className="sidebar" aria-label={isPro ? 'Navigation professionnelle' : 'Navigation de votre espace'}>
+      <a className="brand" href={appPath("/")} aria-label="Retour à l’accueil Loka"><span className="brand-mark">L</span><span>Loka</span></a>
+      <nav className="side-nav">{nav.map(([href,label,Icon]) => <a key={href} className={`nav-item ${active(href) ? 'active' : ''}`} href={appPath(href)} aria-current={active(href) ? 'page' : undefined} title={label}><Icon size={18}/><span>{label}</span></a>)}</nav>
+      {isPro && <a className="side-back-link" href={appPath("/")}><ChevronLeft size={15}/> Accueil public</a>}
+      <button className="theme-toggle sidebar-theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}<span>{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span></button>
     </aside>
-    <main className="main-content" onClick={(event) => { const target = event.target; if (!(target instanceof Element)) return; const link = target.closest('a'); if (!link) return; const href = link.getAttribute('href') || ''; if (href.startsWith('tel:') || href.startsWith('mailto:') || href.startsWith('/messages')) trackEvent('contact', 'navigation', undefined, { href, path }); }}>
-      <header className="topbar">
-        <div><p className="eyebrow">Loka{isAdmin ? ' · Administration' : isPro ? ' · Espace professionnel' : ''}</p><h1>{title}</h1></div>
-        <div className="top-actions">
-          <button className="icon-button theme-toggle" onClick={toggleTheme} aria-label={dark ? 'Passer au thème clair' : 'Passer au thème sombre'} title={dark ? 'Thème clair' : 'Thème sombre'}>{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>
-          {!isPro && !isAdmin && !isAuthPage && <Button variant="secondary" onClick={share}><Compass size={15}/> Partager</Button>}
-          {!isPro && !isAdmin && !isAuthPage && !signedIn && <Button variant="secondary" onClick={() => location.href=withAppBasePath('/connexion')}>Connexion</Button>}
-          {!isPro && !isAdmin && !isAuthPage && !signedIn && <Button onClick={() => location.href=withAppBasePath('/inscription')}>Créer un compte</Button>}
-          {!isPro && !isAdmin && !isAuthPage && signedIn && <Button onClick={() => location.href=withAppBasePath('/annonces/nouvelle')}><ShoppingBag size={15}/> Publier</Button>}
-        </div>
-      </header>
+    <main className="main-content">
+      <header className="topbar"><div><p className="eyebrow">Loka{isPro ? ' · Espace professionnel' : ' · Mon espace'}</p><h1>{title}</h1></div><div className="top-actions"><button className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}<span>{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span></button><a className="topbar-home-link" href={appPath("/")} aria-label="Retour à l’accueil Loka"><Home size={17}/><span>Accueil</span></a></div></header>
       {children}
     </main>
-    {!isAuthPage && <>
-      {mobileMoreOpen && <>
-        <button type="button" className="mobile-more-backdrop" aria-label="Fermer le menu" onClick={() => setMobileMoreOpen(false)} />
-        <section id="mobile-more-panel" className="mobile-more-panel" aria-label="Toutes les destinations">
-          <div className="mobile-more-heading"><strong>{isAdmin ? 'Administration' : isPro ? 'Mon activité' : 'Explorer Loka'}</strong><button type="button" onClick={() => setMobileMoreOpen(false)}>Fermer</button></div>
-          {[...(isAdmin ? adminNav : isPro ? professionalNav : clientNav), ...(!isPro && !isAdmin ? discoveryNav : [])]
-            .filter((entry, index, all) => all.findIndex((other) => other[0] === entry[0]) === index)
-            .map(([href,label,Icon]) => <a key={href} href={href} className={`mobile-more-link ${active(href) ? 'active' : ''}`} onClick={() => setMobileMoreOpen(false)}><Icon size={18}/><span>{label}</span>{active(href) && <span className="mobile-more-current">Actuel</span>}</a>)}
-        </section>
-      </>}
-      <nav className="mobile-nav" aria-label={isAdmin ? 'Navigation administration mobile' : isPro ? 'Navigation professionnelle mobile' : 'Navigation mobile'}>
-        {(isAdmin ? adminNav.slice(0,4) : isPro ? professionalNav.filter(([href]) => ['/pro','/pro/catalogue','/pro/commandes','/pro/reservations'].includes(href)) : clientNav.filter(([href]) => ['/','/recherche','/messages','/activites'].includes(href))).slice(0,4).map(([href,label,Icon]) => <a key={href} className={`mobile-nav-item ${active(href) ? 'active' : ''}`} href={href} aria-current={active(href) ? 'page' : undefined}><Icon size={20}/><span>{label.split(' / ')[0]}</span></a>)}
-        <button type="button" className={`mobile-nav-item mobile-nav-more ${mobileMoreOpen ? 'active' : ''}`} onClick={() => setMobileMoreOpen((value) => !value)} aria-expanded={mobileMoreOpen} aria-controls="mobile-more-panel"><Compass size={20}/><span>Plus</span></button>
-      </nav>
-    </>}
+    <nav className="mobile-nav" aria-label={isPro ? 'Navigation professionnelle mobile' : 'Navigation mobile'}>
+      {(isPro ? professionalNav.slice(0,4) : clientNav.slice(0,4)).map(([href,label,Icon]) => <a key={href} className={`mobile-nav-item ${active(href) ? 'active' : ''}`} href={appPath(href)} aria-current={active(href) ? 'page' : undefined}><Icon size={20}/><span>{label.length > 13 ? label.split(' / ')[0] : label}</span></a>)}
+      {isPro ? <button className={`mobile-nav-item ${moreOpen ? 'active' : ''}`} onClick={() => setMoreOpen(v => !v)} aria-expanded={moreOpen}><MoreHorizontal size={20}/><span>Plus</span></button> : <a className={`mobile-nav-item ${active('/profil') ? 'active' : ''}`} href={appPath("/profil")}><UserRound size={20}/><span>Profil</span></a>}
+    </nav>
+    {isPro && moreOpen && <div className="mobile-more-menu" role="menu">{professionalNav.slice(4).map(([href,label,Icon]) => <a key={href} href={appPath(href)} role="menuitem"><Icon size={17}/>{label}</a>)}<button onClick={toggleTheme}><Moon size={17}/>Changer de thème</button><a href={appPath("/")}><Home size={17}/>Retour à l’accueil</a></div>}
   </div>;
 }

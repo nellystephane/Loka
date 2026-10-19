@@ -5,7 +5,6 @@ router.put('/:restaurantId/categories/:id',auth,c.modifierCategorie);
 router.get('/:restaurantId/tables',auth,c.tables);
 router.post('/reservations',auth,c.creerReservation);
 router.get('/reservations/miennes',auth,c.mesReservations);
-router.post('/reservations/:id/annuler',auth,c.annulerReservationClient);
 router.get('/reservations/recues',auth,c.reservationsRecues);
 router.put('/reservations/:id/statut',auth,c.statutReservation);
 module.exports=router;

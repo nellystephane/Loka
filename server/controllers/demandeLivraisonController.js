@@ -151,8 +151,7 @@ const updateStatutDemande = async (req, res) => {
 
     const transitions = {
       assignée: ['en_cours', 'annulée'],
-      // Le passage en route est exclusivement autorisé par la validation du code de retrait.
-      en_cours: ['annulée'],
+      en_cours: ['en_route', 'annulée'],
       en_route: ['arrivée', 'annulée'],
       arrivée: ['annulée'],
     };
@@ -271,7 +270,6 @@ const validerRecuperation = async (req,res) => {
     const code=String(req.body?.code || '').trim();
     if(!code || !demande.codeRecuperation || code !== demande.codeRecuperation) return res.status(409).json({message:'Code de récupération invalide.'});
     if(!demande.livreur || demande.livreur.toString()!==req.user._id.toString()) return res.status(403).json({message:'Seul le livreur assigné peut valider la récupération.'});
-    if(demande.statut!=='en_cours') return res.status(409).json({message:'La course doit être démarrée avant la validation du retrait.'});
     demande.recuperationValideeLe=new Date();
     demande.statut='en_route';
     demande.historiqueStatuts.push({statut:'en_route',par:req.user._id,note:'Récupération validée.'});
@@ -289,8 +287,8 @@ const validerLivraison = async (req,res) => {
     const code=String(req.body?.code || '').trim();
     if(!code || !demande.codeLivraison || code !== demande.codeLivraison) return res.status(409).json({message:'Code de remise invalide.'});
     if(!demande.livreur || demande.livreur.toString()!==req.user._id.toString()) return res.status(403).json({message:'Seul le livreur assigné peut valider la remise.'});
-    if (!['en_route', 'arrivée'].includes(demande.statut) || !demande.recuperationValideeLe) {
-      return res.status(409).json({ message: 'Le retrait doit être validé avant la remise.' });
+    if (!['en_route', 'arrivée'].includes(demande.statut)) {
+      return res.status(409).json({ message: 'La livraison doit être en route ou arrivée avant la remise.' });
     }
     if (demande.paiementTransaction && Number(demande.montantLivreur) > 0) {
       const transaction = await TransactionPaiement.findById(demande.paiementTransaction);
@@ -315,7 +313,7 @@ const validerLivraison = async (req,res) => {
         }
       }
     }
-    demande.livraisonValideeLe=new Date(); demande.statut='livrée'; demande.preuveLivraison=req.body?.preuve || { type: 'code_remise', valideeLe: demande.livraisonValideeLe };
+    demande.livraisonValideeLe=new Date(); demande.statut='livrée'; demande.preuveLivraison=req.body?.preuve || null;
     demande.historiqueStatuts.push({statut:'livrée',par:req.user._id,note:'Remise validée par code.'});
     await demande.save();
     await creerNotification(req.app.get('io'),demande.client,'livraison_terminee','Livraison terminée','La remise de votre commande a été validée.','/profil');

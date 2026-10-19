@@ -1,3 +1,4 @@
+import { appPath } from '../../utils/navigation';
 import React from 'react';
 import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2, Truck } from 'lucide-react';
 import { CartItem, readCart, writeCart } from '../../services/commerce';
@@ -47,7 +48,7 @@ export function Cart() {
         <div><span>Sous-total</span><b>{money(subtotal)}</b></div>
         <div><span>Livraison</span><b>À définir</b></div>
         <div className="summary-total"><span>Sous-total</span><strong>{money(subtotal)}</strong></div>
-        <a className="button button-primary summary-cta" href="/checkout">Continuer</a>
+        <a className="button button-primary summary-cta" href={appPath('/checkout')}>Continuer</a>
         <p>Le paiement confirmé est distinct de l’exécution et de la livraison de la commande.</p>
       </aside>
     </div>}

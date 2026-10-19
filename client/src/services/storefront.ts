@@ -13,7 +13,7 @@ export type StorefrontConfigPayload = {
   publie?: boolean;
 };
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+import { API_BASE } from './apiConfig';
 
 export async function saveStorefront(payload: StorefrontConfigPayload, token: string) {
   const response = await fetch(`${API_BASE}/api/storefront`, {

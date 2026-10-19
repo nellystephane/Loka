@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+import { API_BASE } from './apiConfig';
 
 async function request(path: string, options: RequestInit = {}, fallback = 'Impossible de communiquer avec Loka.') {
   const response = await fetch(`${API_BASE}${path}`, options);

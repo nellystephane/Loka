@@ -14,21 +14,16 @@ const statusTone: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = 
   en_attente_paiement: 'warning', confirmee: 'success', arrivee: 'success', en_sejour: 'success', terminee: 'neutral', annulee: 'error', expiree: 'neutral'
 };
 
-function localDateInputValue(date = new Date()) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
-}
-
 function dateLabel(value: string) {
   return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00`));
 }
 function money(value: number) { return `${Number(value || 0).toLocaleString('fr-FR')} FCFA`; }
 
-export function HotelDashboard({ initialTab = 'overview' }: { initialTab?: Tab } = {}) {
+export function HotelDashboard() {
   const token = window.localStorage.getItem('token') || '';
   const [data, setData] = useState<DashboardData | null>(null);
-  const [tab, setTab] = useState<Tab>(initialTab);
-  const [date, setDate] = useState(() => localDateInputValue());
+  const [tab, setTab] = useState<Tab>('overview');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');

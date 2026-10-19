@@ -1,7 +1,6 @@
 const Produit = require('../models/Produit');
 const Boutique = require('../models/Boutique');
 const { accordeMiseEnAvant } = require('../utils/abonnementPro');
-const { getPublishedSpaceIds } = require('../utils/storefrontVisibility');
 
 // ─── Récupérer la boutique de l'utilisateur ou renvoyer une erreur ───
 const exigerBoutique = async (userId) => {
@@ -110,12 +109,8 @@ const deleteProduit = async (req, res) => {
 // GET /api/produits/:id
 const getProduitById = async (req, res) => {
   try {
-    const publishedSpaceIds = await getPublishedSpaceIds('vente');
-    const produit = await Produit.findOne({ _id: req.params.id, statut: 'disponible', boutique: { $in: publishedSpaceIds } }).populate({
-      path: 'boutique',
-      match: { statut: 'active' },
-    });
-    if (!produit || !produit.boutique) return res.status(404).json({ message: 'Produit indisponible.' });
+    const produit = await Produit.findById(req.params.id).populate('boutique');
+    if (!produit) return res.status(404).json({ message: 'Produit non trouvé.' });
 
     produit.nombreVues += 1;
     await produit.save();
@@ -135,15 +130,13 @@ const getProduits = async (req, res) => {
     const pageNormalisee = Math.max(1, parseInt(page) || 1);
     const limiteNormalisee = Math.min(50, Math.max(1, parseInt(limite) || 20));
 
-    const publishedSpaceIds = await getPublishedSpaceIds('vente');
-    const filtre = { statut: 'disponible', boutique: { $in: publishedSpaceIds } };
+    const filtre = { statut: 'disponible' };
     if (categorie) filtre.categorie = categorie;
     if (recherche) filtre.$text = { $search: recherche };
 
-    const villeRegex = ville ? new RegExp(String(ville).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     let requete = Produit.find(filtre).populate({
       path: 'boutique',
-      match: { statut: 'active', ...(villeRegex ? { 'localisation.ville': villeRegex } : {}) }
+      match: ville ? { 'localisation.ville': new RegExp(ville, 'i') } : {}
     });
 
     const tousLesProduits = await requete

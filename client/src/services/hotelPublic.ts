@@ -1,4 +1,4 @@
-const API_BASE=(import.meta.env.VITE_API_URL as string|undefined)?.replace(/\/$/,'')||'';
+import { API_BASE } from './apiConfig';
 async function req(path:string,options:RequestInit={},fallback='Impossible de communiquer avec Loka.'){const r=await fetch(`${API_BASE}${path}`,options);const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.message||fallback);return b;}
 export const getHotelPublic=(id:string)=>req(`/api/hotels/${encodeURIComponent(id)}`);
 export const getHotelAvailability=(chambreId:string,dateArrivee:string,dateDepart:string)=>req(`/api/reservations/disponibilite/${chambreId}?dateArrivee=${encodeURIComponent(dateArrivee)}&dateDepart=${encodeURIComponent(dateDepart)}`);

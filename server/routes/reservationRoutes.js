@@ -6,7 +6,6 @@ const {
   getMesReservations,
   getReservationsRecues,
   updateStatutReservation,
-  annulerReservationClient,
   getReservationsChambre,
   getDisponibiliteChambre,
   initierPaiementReservation
@@ -18,7 +17,6 @@ router.get('/mes-reservations', auth, getMesReservations);
 router.get('/recues', auth, getReservationsRecues);
 router.get('/disponibilite/:chambreId', getDisponibiliteChambre);
 router.get('/chambre/:chambreId', getReservationsChambre);
-router.post('/:id/annuler', auth, annulerReservationClient);
 router.put('/:id/statut', auth, updateStatutReservation);
 
 module.exports = router;

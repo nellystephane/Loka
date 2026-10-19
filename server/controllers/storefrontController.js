@@ -13,19 +13,6 @@ const champProprietaire = (type) => type === 'livraison' ? 'utilisateur' : 'prop
 const nomEspace = espace => espace?.nom || 'loka';
 const slugifier = value => String(value || 'loka').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80) || 'loka';
 const slugUnique = async (base, ignoreId=null) => { let slug=base,i=2; while(await StorefrontConfig.exists(ignoreId?{slug,_id:{$ne:ignoreId}}:{slug})) slug=`${base}-${i++}`; return slug; };
-const publicationReadiness = async (espaceType, espace) => {
-  const missing=[];
-  if(!String(espace?.nom||'').trim()) missing.push('nom');
-  if(!String(espace?.description||'').trim()) missing.push('description');
-  if(!String(espace?.localisation?.ville||'').trim()) missing.push('ville');
-  let contentCount=0;
-  if(espaceType==='vente') contentCount=await require('../models/Produit').countDocuments({boutique:espace._id,statut:'disponible',quantiteDisponible:{$gt:0}});
-  else if(espaceType==='restauration') contentCount=await require('../models/Plat').countDocuments({restaurant:espace._id,disponible:true});
-  else if(espaceType==='hotel') contentCount=await require('../models/Chambre').countDocuments({hotel:espace._id,disponible:true});
-  else contentCount=1;
-  if(contentCount<1) missing.push(espaceType==='vente'?'au moins un produit disponible':espaceType==='restauration'?'au moins un plat disponible':espaceType==='hotel'?'au moins un hébergement disponible':'contenu public');
-  return {ready:missing.length===0,missing,contentCount};
-};
 
 const get = async (req,res) => { try { const cfg=await StorefrontConfig.findOne({ espaceType:req.query.espaceType, espaceId:req.query.espaceId }); res.json(cfg||null); } catch(e){res.status(500).json({message:'Erreur serveur.'});} };
 
@@ -48,10 +35,6 @@ const save = async (req,res) => {
     const plan=planActif(espace); const planPourValidation=plan||'starter';
     if(template && !templateAutorise(template,planPourValidation)) return res.status(403).json({message:'Ce template est verrouillé pour votre plan.',template,planRequis:templatesPourPlan(espaceType,planPourValidation).find(x=>x.id===template)?.minimumPlan||'pro'});
     if(publie===true && !plan) return res.status(403).json({message:'Un abonnement professionnel actif est requis pour publier une vitrine.'});
-    if(publie===true){
-      const readiness=await publicationReadiness(espaceType,espace);
-      if(!readiness.ready) return res.status(422).json({message:'La vitrine ne peut pas être publiée : complétez les informations et le contenu requis.',manquants:readiness.missing});
-    }
     const update={espaceType,espaceId,proprietaire:req.user._id};
     if(template)update.template=template; if(accent)update.accent=accent; if(couleurSecondaire)update.couleurSecondaire=couleurSecondaire; if(couleurFond)update.couleurFond=couleurFond; if(mode)update.mode=mode; if(catalogueLayout)update.catalogueLayout=catalogueLayout; if(configuration!==undefined)update.configuration=configuration;
     if(typeof publie==='boolean'){update.publie=publie;update.publieLe=publie?new Date():null;}
@@ -80,7 +63,7 @@ const publicData = async (req,res) => {
       donnees.categories=await require('../models/CategorieEmplacementRestaurant').find({restaurant:espace._id,actif:true}).lean();
     }
     if(cfg.espaceType==='vente'){
-      const Produit=require('../models/Produit'); donnees.produits=await Produit.find({boutique:espace._id,statut:'disponible',quantiteDisponible:{$gt:0}}).sort({estMisEnAvant:-1,createdAt:-1}).lean();
+      const Produit=require('../models/Produit'); donnees.produits=await Produit.find({boutique:espace._id}).sort({estMisEnAvant:-1,createdAt:-1}).lean();
     }
     if(cfg.espaceType==='hotel'){
       const Chambre=require('../models/Chambre'); donnees.hebergements=await Chambre.find({hotel:espace._id,disponible:true}).lean();
@@ -106,7 +89,7 @@ const publicBySpace = async (req,res)=>{
     }
     if(espaceType==='vente'){
       const Produit=require('../models/Produit');
-      donnees.produits=await Produit.find({boutique:espace._id,statut:'disponible',quantiteDisponible:{$gt:0}}).sort({estMisEnAvant:-1,createdAt:-1}).lean();
+      donnees.produits=await Produit.find({boutique:espace._id,statut:{$ne:'archive'}}).sort({estMisEnAvant:-1,createdAt:-1}).lean();
     }
     if(espaceType==='hotel'){
       const Chambre=require('../models/Chambre');
@@ -135,4 +118,4 @@ const editorData = async (req,res)=>{
   }catch(e){console.error(e);res.status(500).json({message:'Impossible de charger les données de la vitrine.'});}
 };
 
-module.exports={get,save,templates,entitlements,publicBySlug,publicData,publicBySpace,editorData,publicationReadiness};
+module.exports={get,save,templates,entitlements,publicBySlug,publicData,publicBySpace,editorData};

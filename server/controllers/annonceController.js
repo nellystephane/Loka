@@ -150,16 +150,11 @@ const getAnnonceById = async (req, res) => {
       return res.status(404).json({ message: 'Annonce non trouvée.' });
     }
 
-    // A public detail must follow the same visibility/expiration rules as search.
-    // The owner may still inspect their own inactive or expired listing.
-    const createurId = annonce.createur?._id || annonce.createur;
-    const estLeCreateur = Boolean(req.user && createurId && createurId.toString() === req.user._id.toString());
-    const estPublique = annonce.statut === 'actif' && (!annonce.dateExpiration || new Date(annonce.dateExpiration) > new Date());
-    if (!estPublique && !estLeCreateur) {
-      return res.status(404).json({ message: 'Cette annonce n’est plus disponible.' });
-    }
-
-    // Ne pas gonfler les statistiques quand le créateur consulte son annonce.
+    // Incrémenter le compteur de vues, sauf quand le créateur consulte sa
+    // propre annonce (ça ne devrait pas gonfler ses propres stats).
+    // req.user est optionnel ici : cette route est publique, l'utilisateur
+    // n'est identifié que s'il a fourni un token valide (voir routes).
+    const estLeCreateur = req.user && annonce.createur._id.toString() === req.user._id.toString();
     if (!estLeCreateur) {
       annonce.nombreVues += 1;
       await annonce.save();

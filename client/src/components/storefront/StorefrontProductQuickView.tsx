@@ -1,3 +1,4 @@
+import { appPath } from '../../utils/navigation';
 import { useEffect, useState } from 'react';
 import { addToCart } from '../../services/commerce';
 import { Check, Heart, Minus, Plus, X } from 'lucide-react';
@@ -21,7 +22,6 @@ export type StorefrontProduct = {
   restaurantId?: string;
   seller?: string;
   unitPrice?: number;
-  available?: boolean;
 };
 
 export function StorefrontProductQuickView({
@@ -51,7 +51,7 @@ export function StorefrontProductQuickView({
 
   const [quantity, setQuantity] = useState(1);
   if (!open || !product) return null;
-  const canCart = Boolean(product.available !== false && product.commerceType && (product.produitId || product.platId));
+  const canCart = Boolean(product.commerceType && (product.produitId || product.platId));
   const price = Number(product.unitPrice || 0);
   const add = () => {
     if (!canCart || !product) return;
@@ -99,7 +99,7 @@ export function StorefrontProductQuickView({
           {!preview && <div className="product-quickview-actions">
             <button className="product-quickview-favorite" aria-label="Ajouter aux favoris"><Heart size={18} /></button>
             <div className="product-quickview-cart"><button type="button" aria-label="Diminuer" disabled={!canCart} onClick={() => setQuantity(Math.max(1, quantity - 1))}><Minus size={15} /></button><span>{quantity}</span><button type="button" aria-label="Augmenter" disabled={!canCart} onClick={() => setQuantity(quantity + 1)}><Plus size={15} /></button></div>
-            <button className="product-quickview-primary" disabled={!canCart} onClick={add}><Check size={17} /> {canCart ? 'Ajouter au panier' : product.available === false ? 'Indisponible' : 'Informations uniquement'}</button>{product.commerceType==='restaurant' && canCart && <button className="button button-secondary" onClick={() => { add(); window.location.assign('/checkout'); }}>Commander maintenant</button>}
+            <button className="product-quickview-primary" disabled={!canCart} onClick={add}><Check size={17} /> {canCart ? 'Ajouter au panier' : 'Informations uniquement'}</button>{product.commerceType==='restaurant' && canCart && <button className="button button-secondary" onClick={() => { add(); window.location.assign(appPath('/checkout')); }}>Commander maintenant</button>}
           </div>}
         </div>
       </section>
