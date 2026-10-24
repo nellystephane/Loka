@@ -6,6 +6,20 @@
     <meta name="theme-color" content="#f2f4f8" />
     <meta name="description" content="Découvrez les boutiques, restaurants, hôtels, livreurs et annonces près de vous avec Loka." />
     <title>Loka — Découvrez près de vous</title>
+    <script>
+      // Restaure le chemin transmis par public/404.html AVANT le démarrage React.
+      // Le routeur voit donc /Loka/profil (ou toute autre route) au premier rendu.
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var route = params.get('__ghr');
+        if (!route) return;
+        params.delete('__ghr');
+        var destination = '/Loka' + (route.charAt(0) === '/' ? route : '/' + route);
+        // Evite un doublon du préfixe quand une ancienne URL est transmise.
+        destination = destination.replace(/^\/Loka\/Loka(?=\/|$)/, '/Loka');
+        window.history.replaceState(null, '', destination);
+      })();
+    </script>
   </head>
   <body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
 </html>

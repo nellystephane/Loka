@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Loka — Redirection</title>
+  </head>
+  <body>
+    <p>Ouverture de Loka…</p>
+    <script>
+      // GitHub Pages ne prend pas en charge nativement le fallback SPA.
+      // On conserve le chemin, la query et le hash pour que le routeur React
+      // puisse restaurer la page demandée après retour sur /Loka/.
+      (function () {
+        var path = window.location.pathname;
+        var prefix = '/Loka';
+        var route = path.indexOf(prefix + '/') === 0
+          ? path.slice(prefix.length)
+          : (path === prefix ? '/' : path);
+        if (!route || route.charAt(0) !== '/') route = '/' + route;
+        route += window.location.search || '';
+        route += window.location.hash || '';
+        var target = prefix + '/?__ghr=' + encodeURIComponent(route);
+        window.location.replace(target);
+      })();
+    </script>
+  </body>
+</html>
