@@ -3,7 +3,7 @@ name: Deploy frontend to GitHub Pages
 on:
   push:
     branches: [main]
-    workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,8 +13,6 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,21 +23,19 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
+        working-directory: client
         run: |
-          cd client
+          npm install -g npm@latest
+          rm -rf node_modules package-lock.json
           npm install
-          
-      - name: Clear Vite cache
-        run: rm -rf client/node_modules/.vite  
 
       - name: Build frontend
+        working-directory: client
         env:
           VITE_API_URL: https://proxiconnect.onrender.com
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_FEDAPAY_PUBLIC_KEY: ${{ secrets.VITE_FEDAPAY_PUBLIC_KEY }}
-        run: |
-          cd client
-          npm run build
+        run: npm run build
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v4
