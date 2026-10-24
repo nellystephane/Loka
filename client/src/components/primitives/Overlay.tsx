@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
-export function IconButton({ label, children, onClick, disabled = false, className = '' }: { label: string; children: ReactNode; onClick?: () => void; disabled?: boolean; className?: string }) {
+export function IconButton({ label, children, onClick, disabled = false, className = '' }: { label: string; children: ReactNode; onClick?: (event: MouseEvent<HTMLButtonElement>) => void; disabled?: boolean; className?: string }) {
   return <button className={`icon-button ${className}`.trim()} type="button" aria-label={label} onClick={onClick} disabled={disabled}>{children}</button>
 }
 

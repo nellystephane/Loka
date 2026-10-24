@@ -16,6 +16,7 @@ export type StorefrontSection =
   | 'rooms'
   | 'services'
   | 'story'
+  | 'signature'
   | 'gallery'
   | 'location'
   | 'reviews'
