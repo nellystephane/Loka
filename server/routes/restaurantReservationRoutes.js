@@ -1,0 +1,10 @@
+const express=require('express'); const router=express.Router(); const auth=require('../middleware/auth'); const c=require('../controllers/restaurantReservationController');
+router.get('/:restaurantId/categories',c.listerCategories);
+router.post('/:restaurantId/categories',auth,c.creerCategorie);
+router.put('/:restaurantId/categories/:id',auth,c.modifierCategorie);
+router.get('/:restaurantId/tables',auth,c.tables);
+router.post('/reservations',auth,c.creerReservation);
+router.get('/reservations/miennes',auth,c.mesReservations);
+router.get('/reservations/recues',auth,c.reservationsRecues);
+router.put('/reservations/:id/statut',auth,c.statutReservation);
+module.exports=router;

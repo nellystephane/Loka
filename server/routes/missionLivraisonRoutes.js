@@ -1,0 +1,1 @@
+const express=require('express');const router=express.Router();const auth=require('../middleware/auth');const c=require('../controllers/missionLivraisonController');router.post('/',auth,c.create);router.get('/miennes',auth,c.mine);router.post('/:id/rattacher',auth,c.rattacher);module.exports=router;

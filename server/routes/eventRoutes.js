@@ -1,0 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const auth = require('../middleware/auth');
+const optionalAuth = require('../middleware/optionalAuth');
+const { statistiquesPartage } = require('../controllers/eventController');
+const { enregistrerEvenement, enregistrerPartage } = require('../controllers/eventController');
+router.post('/evenements', optionalAuth, enregistrerEvenement);
+router.get('/partages', auth, statistiquesPartage);
+router.post('/partages', optionalAuth, enregistrerPartage);
+module.exports = router;

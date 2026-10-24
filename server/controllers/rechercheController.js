@@ -1,0 +1,10 @@
+const Boutique=require('../models/Boutique');
+const Restaurant=require('../models/Restaurant');
+const Hotel=require('../models/Hotel');
+const Livreur=require('../models/Livreur');
+const Annonce=require('../models/Annonce');
+const Produit=require('../models/Produit');
+const Plat=require('../models/Plat');
+const escape=s=>String(s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const search=async(req,res)=>{try{const q=String(req.query.q||'').trim();if(q.length<2)return res.json({results:[]});const rx=new RegExp(escape(q),'i');const [boutiques,restaurants,hotels,livreurs,annonces,produits,plats]=await Promise.all([Boutique.find({statut:'active',nom:rx}).limit(20).lean(),Restaurant.find({statut:'active',nom:rx}).limit(20).lean(),Hotel.find({statut:'active',nom:rx}).limit(20).lean(),Livreur.find({statut:'active',$or:[{nom:rx},{prenom:rx},{zones:rx}]}).limit(20).lean(),Annonce.find({statut:'actif',$or:[{titre:rx},{description:rx},{categorie:rx}]}).limit(20).lean(),Produit.find({$or:[{nom:rx},{description:rx},{categorie:rx}]}).limit(20).lean(),Plat.find({disponible:true,$or:[{nom:rx},{description:rx},{categorie:rx}]}).limit(20).lean()]);const results=[...boutiques.map(x=>({...x,entityType:'boutique'})),...restaurants.map(x=>({...x,entityType:'restaurant'})),...hotels.map(x=>({...x,entityType:'hotel'})),...livreurs.map(x=>({...x,entityType:'livreur'})),...annonces.map(x=>({...x,entityType:'annonce'})),...produits.map(x=>({...x,entityType:'produit'})),...plats.map(x=>({...x,entityType:'plat'}))];res.json({query:q,results});}catch(e){console.error(e);res.status(500).json({message:'Recherche indisponible.'});}};
+module.exports={search};
