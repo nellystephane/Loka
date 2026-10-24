@@ -7,10 +7,13 @@ const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | unde
 declare global { interface Window { google?: { accounts?: { id?: { initialize: (config: {client_id:string;callback:(response:{credential?:string})=>void})=>void; renderButton:(element:HTMLElement,options:Record<string,unknown>)=>void; cancel:()=>void } } } } }
 type AuthUser = { token: string; [key: string]: unknown };
 
-function safeReturnTo() {
+function safeReturnTo(profile?: Record<string, unknown>) {
   const requested = new URLSearchParams(window.location.search).get('returnTo');
-  if (!requested || !requested.startsWith('/') || requested.startsWith('//') || requested.startsWith('/\\')) return appPath('/');
-  return appPath(requested);
+  if (requested && requested.startsWith('/') && !requested.startsWith('//') && !requested.startsWith('/\\')) return appPath(requested);
+  // Une connexion réussie doit ouvrir un espace utile, pas renvoyer aveuglément
+  // vers la page marketing. L'utilisateur retrouve son compte et ses activités.
+  if (profile?.role === 'admin') return appPath('/pro');
+  return appPath('/profil');
 }
 
 async function submitAuth(path: string, payload: Record<string, string>): Promise<AuthUser> {
@@ -58,7 +61,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           const data = await response.json().catch(()=>({}));
           if (!response.ok) throw new Error(data.message || 'La connexion Google a échoué.');
           if (!data.token) throw new Error('Le serveur n’a pas créé de session. Réessayez.');
-          localStorage.setItem('token', data.token); const {token:_token,...profile}=data; localStorage.setItem('loka_user',JSON.stringify(profile)); window.location.assign(safeReturnTo());
+          localStorage.setItem('token', data.token); const {token:_token,...profile}=data; localStorage.setItem('loka_user',JSON.stringify(profile)); window.location.assign(safeReturnTo(profile));
         } catch (e) { setGoogleError(e instanceof Error?e.message:'Impossible de se connecter avec Google.'); }
         finally { setGoogleBusy(false); }
       }});
@@ -85,7 +88,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       localStorage.setItem('token', result.token);
       const { token: _token, ...profile } = result;
       localStorage.setItem('loka_user', JSON.stringify(profile));
-      window.location.assign(safeReturnTo());
+      window.location.assign(safeReturnTo(profile));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue. Réessayez.');
     } finally { setBusy(false); }

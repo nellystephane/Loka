@@ -19,8 +19,8 @@ function isPublicPath(path: string) {
   if (path.startsWith('/livraison/') && !path.startsWith('/livraison/options')) return false;
   return true;
 }
-function PublicHeader() {
-  return <header className="public-header"><a className="public-brand" href={appPath("/")}><span className="brand-mark">L</span><strong>Loka</strong></a><nav aria-label="Navigation publique"><a href={appPath("/recherche")}>Explorer</a><a href={appPath("/connexion")}>Connexion</a><a className="public-header-cta" href={appPath("/inscription")}><UserPlus size={15}/> Commencer avec Loka</a></nav></header>;
+function PublicHeader({theme,onToggleTheme}:{theme:'light'|'dark';onToggleTheme:()=>void}) {
+  return <header className="public-header"><a className="public-brand" href={appPath("/")}><span className="brand-mark">L</span><strong>Loka</strong></a><nav aria-label="Navigation publique"><a href={appPath("/recherche")}>Explorer</a><a href={appPath("/connexion")}>Connexion</a><button type="button" className="public-theme-toggle" onClick={onToggleTheme} aria-label={theme==='dark'?'Activer le thème clair':'Activer le thème sombre'} title={theme==='dark'?'Mode clair':'Mode sombre'}>{theme==='dark'?<Sun size={17}/>:<Moon size={17}/>}</button><a className="public-header-cta" href={appPath("/inscription")}><UserPlus size={15}/> Commencer avec Loka</a></nav></header>;
 }
 export function AppShell({ children }: { children?: ReactNode }) {
   const path = window.location.pathname.replace(/^\/Loka(?=\/|$)/, '') || '/';
@@ -33,12 +33,12 @@ export function AppShell({ children }: { children?: ReactNode }) {
     const requested = path + window.location.search;
     window.location.replace(appPath('/connexion') + '?returnTo=' + encodeURIComponent(requested));
   }, [isPro, path]);
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
   if (authPaths.some(p => path === p || path.startsWith(`${p}/`))) return <>{children}</>;
-  if (isPublicPath(path)) return <div className="public-layout"><PublicHeader/>{children}<footer className="public-footer"><span>© Loka</span><a href={appPath("/inscription")}>Vous êtes professionnel ? Commencez avec Loka <UserPlus size={14}/></a></footer></div>;
+  if (isPublicPath(path)) return <div className="public-layout"><PublicHeader theme={theme} onToggleTheme={toggleTheme}/>{children}<footer className="public-footer"><span>© Loka</span><a href={appPath("/inscription")}>Vous êtes professionnel ? Commencez avec Loka <UserPlus size={14}/></a></footer></div>;
   const nav = isPro ? professionalNav : clientNav;
   const active = (href: string) => href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`);
   const title = isPro ? (nav.find(([href]) => active(href))?.[1] || 'Espace professionnel') : (nav.find(([href]) => active(href))?.[1] || 'Mon espace');
-  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
   return <div className={`app-shell ${isPro ? 'app-shell-pro' : 'app-shell-client'}`}>
     <aside className="sidebar" aria-label={isPro ? 'Navigation professionnelle' : 'Navigation de votre espace'}>
       <a className="brand" href={appPath("/")} aria-label="Retour à l’accueil Loka"><span className="brand-mark">L</span><span>Loka</span></a>

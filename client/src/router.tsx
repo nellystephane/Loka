@@ -27,6 +27,7 @@ import { ProfessionalSubscription } from './pages/pro/ProfessionalSubscription';
 import { ProfessionalSettings } from './pages/pro/ProfessionalSettings';
 import { ProfessionalOverview } from './pages/pro/ProfessionalOverview';
 import { AuthPage, ForgotPasswordPage } from './pages/Auth';
+import { ProfilePage } from './pages/Profile';
 import { ResetPasswordPage, ResendVerificationPage, VerifyEmailPage } from './pages/AccountFlows';
 import { appPath } from './utils/navigation';
 
@@ -39,6 +40,7 @@ export function Router(){
  else if(path==='/renvoyer-confirmation') page = <ResendVerificationPage/>;
  else if(path==='/connexion') page = <AuthPage mode="login"/>;
  else if(path==='/inscription') page = <AuthPage mode="register"/>;
+ else if(path==='/profil') page = <ProfilePage/>;
  else if(path==='/messages') page = <Messages/>;
  else if(path==='/recherche') page = <SearchPage/>;
  else if(path==='/pro') page = <ProfessionalOverview/>;
