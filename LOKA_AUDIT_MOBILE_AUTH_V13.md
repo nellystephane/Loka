@@ -50,3 +50,11 @@ Connexion avec rôle `admin` sans `returnTo` → `/pro`; les utilisateurs normau
 - Vérifier que les données API de découverte sont disponibles et que les liens des cartes retournées correspondent aux identifiants réels.
 - Les pages métier restent à tester sur leurs flux de données réels ; ce correctif ne prétend pas certifier les commandes, réservations, paiements ou opérations de livraison.
 - `/profil` utilise l'endpoint existant `GET /api/users/profil`. Les actions de réservation et de favoris ne sont pas présentées comme raccourcis tant que leurs pages client dédiées ne sont pas établies dans le routeur.
+
+
+## Correctif déploiement CI (V13.1)
+
+- Cause probable de l’échec `npm error Cannot read properties of null (reading 'edgesOut')` : `client/package-lock.json` était incomplet/incohérent : il ne contenait que le paquet racine et aucune entrée de dépendances.
+- Suppression du lockfile incomplet afin que npm résolve un graphe de dépendances propre sur le runner.
+- Workflow GitHub Actions aligné sur Node.js 22 et installation `npm install --no-audit --no-fund`.
+- Limite : l’installation n’a pas pu être exécutée ici car l’accès réseau/dépendances a dépassé le délai. Le prochain run GitHub Actions doit confirmer la résolution et le build.

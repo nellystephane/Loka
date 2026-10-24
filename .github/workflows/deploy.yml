@@ -22,13 +22,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: |
           cd client
-          npm install
-          
+          npm install --no-audit --no-fund
+
       - name: Clear Vite cache
         run: rm -rf client/node_modules/.vite  
 
