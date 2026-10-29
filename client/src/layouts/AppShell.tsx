@@ -7,7 +7,7 @@ const clientNav = [
   ['/','Accueil',Home], ['/recherche','Explorer',Search], ['/messages','Messages',MessageCircle], ['/notifications','Notifications',Bell], ['/profil','Profil',UserRound], ['/mon-espace','Mon espace',Store], ['/mes-annonces','Mes annonces',ClipboardList]
 ] as const;
 const professionalNav = [
-  ['/pro','Vue d’ensemble',Home], ['/pro/catalogue','Catalogue / menu / chambres',Package], ['/pro/commandes','Commandes',ClipboardList], ['/pro/livraisons','Livraisons',Truck], ['/pro/messages','Messages',MessageCircle], ['/pro/finances','Finances',CreditCard], ['/pro/abonnement','Abonnement',CalendarDays], ['/pro/vitrine','Vitrine',Store], ['/pro/parametres','Paramètres',Settings]
+  ['/pro','Vue d’ensemble',Home], ['/pro/catalogue','Catalogue / menu / chambres',Package], ['/pro/commandes','Commandes',ClipboardList], ['/pro/livraisons','Livraisons',Truck], ['/pro/reservations','Réservations restaurant',CalendarDays], ['/pro/hotel','Gestion hôtelière',Store], ['/pro/messages','Messages',MessageCircle], ['/pro/finances','Finances',CreditCard], ['/pro/abonnement','Abonnement',CalendarDays], ['/pro/vitrine','Vitrine',Store], ['/pro/parametres','Paramètres',Settings]
 ] as const;
 const authPaths = ['/connexion','/inscription','/mot-de-passe-oublie','/reset-password','/verification-email','/renvoyer-confirmation'];
 function isPublicPath(path: string) {
