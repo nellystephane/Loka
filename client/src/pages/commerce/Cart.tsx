@@ -9,7 +9,7 @@ export function Cart() {
   const [items, setItems] = React.useState<CartItem[]>(readCart);
   React.useEffect(() => writeCart(items), [items]);
 
-  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);const sellerCount=new Set(items.map(item=>item.seller)).size;
   const change = (id: string, delta: number) => setItems((current) => current.map((item) => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
   const remove = (id: string) => setItems((current) => current.filter((item) => item.id !== id));
 
@@ -21,7 +21,7 @@ export function Cart() {
         <h2>Votre panier</h2>
         <p>Le panier conserve les articles choisis avant l’initialisation réelle du paiement.</p>
       </div>
-      <span className="commerce-count">{items.length} article{items.length > 1 ? 's' : ''}</span>
+      <span className="commerce-count">{items.length} article{items.length > 1 ? 's' : ''} · {sellerCount} vendeur{sellerCount>1?'s':''}</span>
     </div>
 
     {items.length === 0 ? <div className="commerce-empty">
@@ -45,11 +45,11 @@ export function Cart() {
       </section>
       <aside className="order-summary">
         <span className="section-eyebrow">Résumé</span><h3>Commande</h3>
-        <div><span>Sous-total</span><b>{money(subtotal)}</b></div>
-        <div><span>Livraison</span><b>À définir</b></div>
-        <div className="summary-total"><span>Sous-total</span><strong>{money(subtotal)}</strong></div>
+        <div><span>Articles</span><b>{money(subtotal)}</b></div>
+        <div><span>Livraison</span><b>Calculée à l’étape suivante</b></div>
+        <div className="summary-total"><span>Total provisoire</span><strong>{money(subtotal)}</strong></div>
         <a className="button button-primary summary-cta" href={appPath('/checkout')}>Continuer</a>
-        <p>Le paiement confirmé est distinct de l’exécution et de la livraison de la commande.</p>
+        <p>Votre panier peut contenir des articles de plusieurs vendeurs. Les frais de livraison et le total final seront confirmés avant le paiement.</p>
       </aside>
     </div>}
   </div>;

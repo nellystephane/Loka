@@ -68,6 +68,8 @@ const produitSchema = new mongoose.Schema({
     default: 0
   },
 
+  video: { type: String, default: '' },
+
   photos: {
     type: [String],
     validate: [(val) => val.length <= 10, 'Maximum 10 photos autorisées']

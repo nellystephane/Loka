@@ -6,6 +6,7 @@ export type ProduitPayload = {
   prix: number;
   quantiteDisponible: number;
   photos?: string[];
+  video?: string;
   variantes?: { nom: string; valeurs: string[] }[];
   attributs?: Record<string, string | string[]>;
   tags?: string[];

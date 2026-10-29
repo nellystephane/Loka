@@ -21,7 +21,7 @@ const createProduit = async (req, res) => {
 
     const {
       nom, description, categorie, prix, quantiteDisponible,
-      photos, variantes, attributs, tags, collections, categorieId, etat, marque, modele, livraisonPossible
+      photos, video, variantes, attributs, tags, collections, categorieId, etat, marque, modele, livraisonPossible
     } = req.body;
 
     if (!nom || !description || !categorie || prix === undefined) {
@@ -35,6 +35,7 @@ const createProduit = async (req, res) => {
       prix,
       quantiteDisponible: quantiteDisponible ?? 0,
       photos: photos || [],
+      video: video || '',
       variantes: variantes || [],
       categorieId: categorieId || null,
       attributs: attributs || {},
@@ -64,7 +65,7 @@ const updateProduit = async (req, res) => {
 
     const champsAutorises = [
       'nom', 'description', 'categorie', 'prix', 'quantiteDisponible',
-      'photos', 'variantes', 'categorieId', 'attributs', 'tags', 'collections', 'etat', 'marque', 'modele', 'livraisonPossible', 'statut'
+      'photos', 'video', 'variantes', 'categorieId', 'attributs', 'tags', 'collections', 'etat', 'marque', 'modele', 'livraisonPossible', 'statut'
     ];
     champsAutorises.forEach((champ) => {
       if (req.body[champ] !== undefined) produit[champ] = req.body[champ];

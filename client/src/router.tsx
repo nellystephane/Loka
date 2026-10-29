@@ -28,6 +28,12 @@ import { ProfessionalSettings } from './pages/pro/ProfessionalSettings';
 import { ProfessionalOverview } from './pages/pro/ProfessionalOverview';
 import { AuthPage, ForgotPasswordPage } from './pages/Auth';
 import { ProfilePage } from './pages/Profile';
+import { MySpacePage } from './pages/MySpace';
+import { PublishAnnouncementPage } from './pages/PublishAnnouncement';
+import { MyAnnouncementsPage } from './pages/MyAnnouncements';
+import { DeliveryAgencies } from './pages/public/DeliveryAgencies';
+import { LegalDocuments } from './pages/LegalDocuments';
+import { Directory } from './pages/public/Directory';
 import { ResetPasswordPage, ResendVerificationPage, VerifyEmailPage } from './pages/AccountFlows';
 import { appPath } from './utils/navigation';
 
@@ -41,6 +47,13 @@ export function Router(){
  else if(path==='/connexion') page = <AuthPage mode="login"/>;
  else if(path==='/inscription') page = <AuthPage mode="register"/>;
  else if(path==='/profil') page = <ProfilePage/>;
+ else if(path==='/mon-espace') page = <MySpacePage/>;
+ else if(path==='/publier-annonce') page = <PublishAnnouncementPage/>;
+ else if(path==='/mes-annonces') page = <MyAnnouncementsPage/>;
+ else if(path==='/agences-livraison') page = <DeliveryAgencies/>;
+ else if(path==='/annonces') page = <Directory type="annonces"/>;
+ else if(path.startsWith('/annuaire/')) page = <Directory type={path.split('/')[2]||''}/>;
+ else if(['/conditions-generales','/mentions-legales','/confidentialite'].includes(path)) page = <LegalDocuments/>;
  else if(path==='/messages') page = <Messages/>;
  else if(path==='/recherche') page = <SearchPage/>;
  else if(path==='/pro') page = <ProfessionalOverview/>;

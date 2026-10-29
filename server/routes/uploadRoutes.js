@@ -64,6 +64,31 @@ router.post('/', auth, (req, res) => {
   });
 });
 
+// ─── Vidéo d’annonce / fiche produit : accès conditionné par les avantages de l’offre. ───
+const videoUpload = multer({
+  storage: stockageActif(),
+  limits: { fileSize: 30 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!['video/mp4', 'video/webm', 'video/quicktime'].includes(file.mimetype)) {
+      return cb(new Error('Format vidéo non pris en charge. Utilisez MP4, WebM ou MOV.'));
+    }
+    cb(null, true);
+  }
+});
+const { getAvantagesActifs } = require('../utils/abonnement');
+router.post('/video', auth, async (req, res) => {
+  try {
+    const { avantages } = await getAvantagesActifs(req.user._id);
+    if (!avantages.videoAutorisee) return res.status(403).json({ message: 'La publication vidéo nécessite une offre qui inclut cette option.', code: 'VIDEO_NON_AUTORISEE' });
+    videoUpload.single('video')(req, res, async (err) => {
+      if (err) return res.status(400).json({ message: err.message || 'La vidéo n’a pas pu être envoyée.' });
+      if (!req.file) return res.status(400).json({ message: 'Choisissez une vidéo avant de continuer.' });
+      try { const url = await resoudreUrl(req.file); res.json({ url }); }
+      catch (e) { console.error('Échec du téléversement vidéo :', e); res.status(502).json({ message: 'La vidéo ne peut pas être enregistrée pour le moment.' }); }
+    });
+  } catch (e) { res.status(500).json({ message: 'Impossible de vérifier les options de votre offre.' }); }
+});
+
 // ─── Pièces jointes de messagerie : images, PDF et documents courants.
 // Route distincte de l'upload photo ci-dessus (limite de taille et types
 // acceptés différents), pour ne jamais modifier son comportement existant. ───

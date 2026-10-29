@@ -1,0 +1,12 @@
+# Changelog V18
+- Messagerie : recherche, états vides et erreurs plus sûres.
+- Espaces : exclusion des espaces sans ID réel et navigation professionnelle adaptée.
+- Catalogue : choix de l'espace, ajout de plats et de chambres, médias photos/vidéos.
+- Vitrine : choix d'établissement et contrôles de couleurs étendus.
+- Commandes : filtres métier et espace.
+- Finances : configuration complète du moyen de versement et activation séparée.
+- Abonnements : état sans espace et stabilisation du chargement du statut.
+- Annonces : publication photo/vidéo, gestion, édition, suppression, vues et expiration.
+- Découverte : rails par métier, promotions et annuaires publics, dont agences de livraison.
+- Paramètres : routes documentaires explicites et déconnexion corrigée.
+- Validation : syntaxe Node et transpilation syntaxique frontend vérifiées; build complet/E2E non exécutés.

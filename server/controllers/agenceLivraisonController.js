@@ -3,6 +3,8 @@ const Livreur = require('../models/Livreur');
 const priorite = require('../utils/tarificationPro').priorite;
 const DemandeLivraison = require('../models/DemandeLivraison');
 
+const annuaire = async(req,res)=>{try{const agences=await AgenceLivraison.find({statut:'active'}).select('nom description zones telephone statut abonnementPro createdAt').sort({'abonnementPro.priorite':-1,createdAt:-1}).limit(50).lean();res.json({agences});}catch(e){res.status(500).json({message:'Impossible de charger les agences de livraison.'});}};
+
 const creer = async (req,res)=>{ try { const {nom,description,zones,telephone}=req.body||{}; if(!nom) return res.status(400).json({message:'Nom obligatoire.'}); const a=await AgenceLivraison.create({proprietaire:req.user._id,nom,description,zones:Array.isArray(zones)?zones:[],telephone:telephone||''}); res.status(201).json(a); } catch(e){res.status(500).json({message:'Erreur serveur.'});} };
 const moi = async(req,res)=>{ const a=await AgenceLivraison.findOne({proprietaire:req.user._id}).populate('livreurs','nom prenom telephone'); res.json(a); };
 
@@ -40,4 +42,4 @@ const affecterLivreur = async (req,res)=>{
 };
 
 const ajouterLivreur = async(req,res)=>{ try{const a=await AgenceLivraison.findOne({proprietaire:req.user._id}); if(!a) return res.status(404).json({message:'Agence introuvable.'}); const l=await Livreur.findOne({utilisateur:req.body.livreurId}); if(!l) return res.status(404).json({message:'Livreur introuvable.'}); if(!a.livreurs.some(x=>x.toString()===l.utilisateur.toString())) a.livreurs.push(l.utilisateur); if(!l.agences.some(x=>x.toString()===a._id.toString())) l.agences.push(a._id); await Promise.all([a.save(),l.save()]); res.json(a); }catch(e){res.status(500).json({message:'Erreur serveur.'});} };
-module.exports={creer,moi,demandes,affecterLivreur,ajouterLivreur};
+module.exports={creer,moi,annuaire,demandes,affecterLivreur,ajouterLivreur};
